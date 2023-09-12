@@ -1,1 +1,1 @@
-# Brain-Scans-MPQ
+# Brain-Scans-MQP
