@@ -16,6 +16,7 @@ from torchvision import transforms
 from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr as corr
+import visualize
 
 
 def main():
@@ -39,67 +40,29 @@ def main():
     ## this works
 
     hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
+    roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
 
-    # Load the brain surface map of all vertices
-    roi_dir = os.path.join(args.data_dir, 'roi_masks',
-                           hemisphere[0] + 'h.all-vertices_fsaverage_space.npy')
-    fsaverage_all_vertices = np.load(roi_dir)
+    # visualize.plotAllVertices(args)
+    # visualize.plotROI(args, hemisphere, roi)
 
-    # Create the interactive brain surface map
-    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
-    # view1 = plotting.plot_surf(
-    #    surf_mesh=fsaverage['infl_' + hemisphere],
-    #    surf_map=fsaverage_all_vertices,
-    #    bg_map=fsaverage['sulc_' + hemisphere],
-    #    threshold=1e-14,
-    #    cmap='cool',
-    #    colorbar=False,
-    #    title="test title"
-    #    #title='All vertices, ' + hemisphere + ' hemisphere'
-    # )
-    # plotting.show()
-    roi = "OFA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
+    train_img_dir = os.path.join(args.data_dir, 'training_split', 'training_images')
+    test_img_dir = os.path.join(args.data_dir, 'test_split', 'test_images')
 
-    # Define the ROI class based on the selected ROI
-    if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
-        roi_class = 'prf-visualrois'
-    elif roi in ["EBA", "FBA-1", "FBA-2", "mTL-bodies"]:
-        roi_class = 'floc-bodies'
-    elif roi in ["OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces"]:
-        roi_class = 'floc-faces'
-    elif roi in ["OPA", "PPA", "RSC"]:
-        roi_class = 'floc-places'
-    elif roi in ["OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words"]:
-        roi_class = 'floc-words'
-    elif roi in ["early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]:
-        roi_class = 'streams'
+    # Create lists will all training and test image file names, sorted
+    train_img_list = os.listdir(train_img_dir)
+    train_img_list.sort()
+    test_img_list = os.listdir(test_img_dir)
+    test_img_list.sort()
+    print('Training images: ' + str(len(train_img_list)))
+    print('Test images: ' + str(len(test_img_list)))
+    train_img_file = train_img_list[0]
+    print('Training image file name: ' + train_img_file)
+    print('73k NSD images ID: ' + train_img_file[-9:-4])
 
-    # Load the ROI brain surface maps
-    roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
-                                 hemisphere[0] + 'h.' + roi_class + '_fsaverage_space.npy')
-    roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
-                               'mapping_' + roi_class + '.npy')
-    fsaverage_roi_class = np.load(roi_class_dir)
-    roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+    img = 0
 
-    # Select the vertices corresponding to the ROI of interest
-    roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
-    fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
-
-    # Create the interactive brain surface map
-    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
-    view2 = plotting.plot_surf(
-        surf_mesh=fsaverage['infl_' + hemisphere],
-        surf_map=fsaverage_roi,
-        bg_map=fsaverage['sulc_' + hemisphere],
-        threshold=1e-14,
-        cmap='cool',
-        colorbar=True,
-        title=roi + ', ' + hemisphere + ' hemisphere'
-    )
-    plotting.show()
-
-    # view2
+    # visualize.plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri)
+    visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
 
 
 class argObj:
@@ -116,7 +79,7 @@ class argObj:
 
 
 def unzipData():
-    with zipfile.ZipFile("subj01.zip", "r") as zip_ref:
+    with zipfile.ZipFile("daradir/subj01.zip", "r") as zip_ref:
         zip_ref.extractall("FMRI-Data")
 
 
@@ -126,4 +89,5 @@ if __name__ == "__main__":
     device = torch.device(device)
     # uncomment this when first used to unzip the patient data
     # unzipData()
+
     main()
