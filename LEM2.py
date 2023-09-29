@@ -1,29 +1,40 @@
-import os
-import sys
-import zipfile
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
 import numpy as np
 from pathlib import Path
-from PIL import Image
-from certifi.__main__ import args
-from torch import device
-from tqdm import tqdm
-import matplotlib
-from matplotlib import pyplot as plt
-from nilearn import datasets
-from nilearn import plotting
-import torch
-from torch.utils.data import DataLoader, Dataset
-from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names
-from torchvision import transforms
-from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
+from sklearn.decomposition import IncrementalPCA
+from torch.utils.data import DataLoader, Dataset
+from torchvision import models
+from torchvision.models import GoogLeNet_Weights
+from torchvision.models.feature_extraction import get_graph_node_names, create_feature_extractor
+from tqdm import tqdm
+from PIL import Image
 from scipy.stats import pearsonr as corr
+
 import visualize
 
-global lh_correlation
-global rh_correlation
-def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri):
-    rand_seed = 5  # @param
+
+# Define the GoogLeNet model
+class GoogLeNet(nn.Module):
+    def __init__(self):
+        super(GoogLeNet, self).__init__()
+        self.model = models.googlenet(init_weights=True)
+        #maybe use this
+        #self.model = models.googlenet(weights = GoogLeNet_Weights.DEFAULT)
+        self.model.aux_logits = False  # Disable auxiliary classifiers
+
+    def forward(self, x):
+        # Forward pass through the GoogLeNet model
+        x = self.model(x)
+        return x
+
+
+# Rest of your code
+def splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri):
+    rand_seed = 5
     np.random.seed(rand_seed)
     global lh_correlation
     global rh_correlation
@@ -47,7 +58,7 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 350  # @param
+    batch_size = 225  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
@@ -72,23 +83,22 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
     rh_fmri_val = rh_fmri[idxs_val]
     del lh_fmri, rh_fmri
     print("Check 3")
-    # stops working here
-    torch.cuda.empty_cache()
-    alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train, rh_fmri_train,
-            lh_fmri_val, rh_fmri_val)
-    # linearMap(features_train, lh_fmri_train, rh_fmri_train, features_val, features_test)
+
+    # Use GoogLeNet model
+    googlenet(args, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train,
+              rh_fmri_train,
+              lh_fmri_val, rh_fmri_val)
 
 
-def alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train, rh_fmri_train,
-            lh_fmri_val, rh_fmri_val):
-    model = torch.hub.load('pytorch/vision:v0.10.0', 'alexnet')
+def googlenet(args, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train,
+              rh_fmri_train,
+              lh_fmri_val, rh_fmri_val):
+    model = GoogLeNet()
     model.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     model.eval()  # set the model to evaluation mode, since you are not training it
     train_nodes, _ = get_graph_node_names(model)
-    print(train_nodes)
-    print("Check 4")
-    model_layer = "features.2"  # @param ["features.2", "features.5", "features.7", "features.9", "features.12",
-    # "classifier.2", "classifier.5", "classifier.6"] {allow-input: true}
+    # print(train_nodes)
+    model_layer = "model.fc"
     feature_extractor = create_feature_extractor(model, return_nodes=[model_layer])
     pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size)
     features_train = extract_features(feature_extractor, train_imgs_dataloader, pca)
@@ -108,10 +118,11 @@ def alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloade
     print('(Test stimulus images × PCA features)')
 
     del model, pca
-    linearMap(args,features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val)
+    linearMap(args, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val)
 
 
-def linearMap(args,features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val):
+def linearMap(args, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val,
+              rh_fmri_val):
     # Fit linear regressions on the training data
     reg_lh = LinearRegression().fit(features_train, lh_fmri_train)
     reg_rh = LinearRegression().fit(features_train, rh_fmri_train)
@@ -120,11 +131,10 @@ def linearMap(args,features_train, lh_fmri_train, rh_fmri_train, features_val, f
     lh_fmri_test_pred = reg_lh.predict(features_test)
     rh_fmri_val_pred = reg_rh.predict(features_val)
     rh_fmri_test_pred = reg_rh.predict(features_test)
-    predAccuracy(args,lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+    predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
 
-def predAccuracy(args,lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val):
-
+def predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val):
     # Empty correlation array of shape: (LH vertices)
     lh_correlation = np.zeros(lh_fmri_val_pred.shape[1])
     # Correlate each predicted LH vertex with the corresponding ground truth vertex
@@ -137,7 +147,7 @@ def predAccuracy(args,lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_v
     for v in tqdm(range(rh_fmri_val_pred.shape[1])):
         rh_correlation[v] = corr(rh_fmri_val_pred[:, v], rh_fmri_val[:, v])[0]
     visualize.anotherOne(args, lh_correlation, rh_correlation)
-    visualize.AccuracyROI(args,lh_correlation,rh_correlation)
+    visualize.AccuracyROI(args, lh_correlation, rh_correlation)
 
 
 def extract_features(feature_extractor, dataloader, pca):
@@ -149,14 +159,14 @@ def extract_features(feature_extractor, dataloader, pca):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Apply PCA transform
         ft = pca.transform(ft.cpu().detach().numpy())
-        #ft = pca.transform(ft.cuda().detach().numpy())
+        # ft = pca.transform(ft.cuda().detach().numpy())
         features.append(ft)
     return np.vstack(features)
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
     # Define PCA parameters
-    pca = IncrementalPCA(n_components=100, batch_size=batch_size)
+    pca = IncrementalPCA(n_components=57, batch_size=batch_size)
 
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -166,7 +176,7 @@ def fit_pca(feature_extractor, dataloader, batch_size):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Fit PCA to batch
         pca.partial_fit(ft.detach().cpu().numpy())
-        #pca.partial_fit(ft.detach().cuda().numpy())
+        # pca.partial_fit(ft.detach().cuda().numpy())
     return pca
 
 
@@ -186,6 +196,3 @@ class ImageDataset(Dataset):
         if self.transform:
             img = self.transform(img).to('cuda')
         return img
-
-
-
