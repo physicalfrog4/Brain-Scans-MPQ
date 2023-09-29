@@ -24,7 +24,7 @@ import visualize
 def main():
     print("Hello World!")
     if platform == 'jupyter_notebook':
-        data_dir = 'C:\GitHub\Brain-Scans-MQP\FMRI-Data'
+        data_dir = '../MQP/algonauts_2023_challenge_data/'
         parent_submission_dir = 'C:\GitHub\Brain-Scans-MQP\submissiondir'
     subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
     #global args
