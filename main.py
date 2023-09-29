@@ -23,7 +23,6 @@ import visualize
 
 
 def main():
-    print("Hello World!")
     if platform == 'jupyter_notebook':
         data_dir = '../MQP/algonauts_2023_challenge_data/'
         parent_submission_dir = 'C:\GitHub\Brain-Scans-MQP\submissiondir'
