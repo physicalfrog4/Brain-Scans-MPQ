@@ -47,7 +47,7 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 500  # @param
+    batch_size = 350  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
@@ -73,7 +73,7 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
     del lh_fmri, rh_fmri
     print("Check 3")
     # stops working here
-
+    torch.cuda.empty_cache()
     alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train, rh_fmri_train,
             lh_fmri_val, rh_fmri_val)
     # linearMap(features_train, lh_fmri_train, rh_fmri_train, features_val, features_test)

@@ -55,7 +55,7 @@ def splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, 
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 500  # @param
+    batch_size = 350  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))

@@ -72,11 +72,12 @@ def main():
 
     # visualize.plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri)
     # PLot ROI from FRMI and IMG
-    # visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
+    visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
     plotting.show()
     # 2
-    print("________ ALEX NET ________")
-    LEM.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+    #print("________ ALEX NET ________")
+    #LEM.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+    torch.cuda.empty_cache()
     print("________ GOOGLE NET ________")
     LEM2.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
 
