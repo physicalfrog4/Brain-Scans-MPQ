@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from nilearn import datasets, plotting
 from PIL import Image
+import LEM
 
 
 def plotAllVertices(args):
@@ -68,7 +69,7 @@ def plotROI(args, hemisphere, roi):
         colorbar=False,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    plotting.show()
+    #plotting.show()
 
 
 def plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri):
@@ -175,4 +176,93 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
         colorbar=True,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
+    #plotting.show()
+# this doesnt work
+def anotherOne(args, lh_correlation,rh_correlation):
+    hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
+
+    # Load the brain surface map of all vertices
+    roi_dir = os.path.join(args.data_dir, 'roi_masks',
+                           hemisphere[0] + 'h.all-vertices_fsaverage_space.npy')
+    fsaverage_all_vertices = np.load(roi_dir)
+
+    # Map the correlation results onto the brain surface map
+    fsaverage_correlation = np.zeros(len(fsaverage_all_vertices))
+    if hemisphere == 'left':
+        fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = lh_correlation
+    elif hemisphere == 'right':
+        fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = rh_correlation
+
+    # Create the interactive brain surface map
+    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
+    view = plotting.plot_surf(
+        surf_mesh=fsaverage['infl_' + hemisphere],
+        surf_map=fsaverage_correlation,
+        bg_map=fsaverage['sulc_' + hemisphere],
+        threshold=1e-14,
+        cmap='cold_hot',
+        colorbar=True,
+        title='Encoding accuracy, ' + hemisphere + ' hemisphere'
+    )
+    plotting.show()
+def AccuracyROI(args,lh_correlation,rh_correlation):
+    # Load the ROI classes mapping dictionaries
+    roi_mapping_files = ['mapping_prf-visualrois.npy', 'mapping_floc-bodies.npy',
+                         'mapping_floc-faces.npy', 'mapping_floc-places.npy',
+                         'mapping_floc-words.npy', 'mapping_streams.npy']
+    roi_name_maps = []
+    for r in roi_mapping_files:
+        roi_name_maps.append(np.load(os.path.join(args.data_dir, 'roi_masks', r),
+                                     allow_pickle=True).item())
+
+    # Load the ROI brain surface maps
+    lh_challenge_roi_files = ['lh.prf-visualrois_challenge_space.npy',
+                              'lh.floc-bodies_challenge_space.npy', 'lh.floc-faces_challenge_space.npy',
+                              'lh.floc-places_challenge_space.npy', 'lh.floc-words_challenge_space.npy',
+                              'lh.streams_challenge_space.npy']
+    rh_challenge_roi_files = ['rh.prf-visualrois_challenge_space.npy',
+                              'rh.floc-bodies_challenge_space.npy', 'rh.floc-faces_challenge_space.npy',
+                              'rh.floc-places_challenge_space.npy', 'rh.floc-words_challenge_space.npy',
+                              'rh.streams_challenge_space.npy']
+    lh_challenge_rois = []
+    rh_challenge_rois = []
+    for r in range(len(lh_challenge_roi_files)):
+        lh_challenge_rois.append(np.load(os.path.join(args.data_dir, 'roi_masks',
+                                                      lh_challenge_roi_files[r])))
+        rh_challenge_rois.append(np.load(os.path.join(args.data_dir, 'roi_masks',
+                                                      rh_challenge_roi_files[r])))
+
+    # Select the correlation results vertices of each ROI
+    roi_names = []
+    lh_roi_correlation = []
+    rh_roi_correlation = []
+    for r1 in range(len(lh_challenge_rois)):
+        for r2 in roi_name_maps[r1].items():
+            if r2[0] != 0:  # zeros indicate to vertices falling outside the ROI of interest
+                roi_names.append(r2[1])
+                lh_roi_idx = np.where(lh_challenge_rois[r1] == r2[0])[0]
+                rh_roi_idx = np.where(rh_challenge_rois[r1] == r2[0])[0]
+                lh_roi_correlation.append(lh_correlation[lh_roi_idx])
+                rh_roi_correlation.append(rh_correlation[rh_roi_idx])
+    roi_names.append('All vertices')
+    lh_roi_correlation.append(lh_correlation)
+    rh_roi_correlation.append(rh_correlation)
+
+    # Create the plot
+    lh_mean_roi_correlation = [np.mean(lh_roi_correlation[r])
+                               for r in range(len(lh_roi_correlation))]
+    rh_mean_roi_correlation = [np.mean(rh_roi_correlation[r])
+                               for r in range(len(rh_roi_correlation))]
+    plt.figure(figsize=(18, 6))
+    x = np.arange(len(roi_names))
+    width = 0.30
+    plt.bar(x - width / 2, lh_mean_roi_correlation, width, label='Left Hemisphere')
+    plt.bar(x + width / 2, rh_mean_roi_correlation, width,
+            label='Right Hemishpere')
+    plt.xlim(left=min(x) - .5, right=max(x) + .5)
+    plt.ylim(bottom=0, top=1)
+    plt.xlabel('ROIs')
+    plt.xticks(ticks=x, labels=roi_names, rotation=60)
+    plt.ylabel('Mean Pearson\'s $r$')
+    plt.legend(frameon=True, loc=1);
     plotting.show()
