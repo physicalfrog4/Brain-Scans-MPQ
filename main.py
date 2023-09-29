@@ -107,7 +107,7 @@ def unzipData():
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cpu'  # @param ['cpu', 'cuda'] {allow-input: true}
+    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
     device = torch.device(device)
     # uncomment this when first used to unzip the patient data
     # unzipData()

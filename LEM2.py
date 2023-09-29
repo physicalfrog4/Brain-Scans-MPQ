@@ -91,10 +91,10 @@ def googlenet(args, train_imgs_dataloader, val_imgs_dataloader, test_imgs_datalo
               rh_fmri_train,
               lh_fmri_val, rh_fmri_val):
     model = GoogLeNet()
-    model.to('cpu')  # send the model to the chosen device ('cpu' or 'cuda')
+    model.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     model.eval()  # set the model to evaluation mode, since you are not training it
     train_nodes, _ = get_graph_node_names(model)
-    print(train_nodes)
+    #print(train_nodes)
     model_layer = "model.fc"
     feature_extractor = create_feature_extractor(model, return_nodes=[model_layer])
     pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size)
@@ -191,6 +191,6 @@ class ImageDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
-            img = self.transform(img).to('cpu')
+            img = self.transform(img).to('cuda')
         return img
 

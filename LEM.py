@@ -82,7 +82,7 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
 def alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train, rh_fmri_train,
             lh_fmri_val, rh_fmri_val):
     model = torch.hub.load('pytorch/vision:v0.10.0', 'alexnet')
-    model.to('cpu')  # send the model to the chosen device ('cpu' or 'cuda')
+    model.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     model.eval()  # set the model to evaluation mode, since you are not training it
     train_nodes, _ = get_graph_node_names(model)
     print(train_nodes)
@@ -184,7 +184,7 @@ class ImageDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
-            img = self.transform(img).to('cpu')
+            img = self.transform(img).to('cuda')
         return img
 
 
