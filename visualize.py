@@ -69,7 +69,7 @@ def plotROI(args, hemisphere, roi):
         colorbar=False,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    #plotting.show()
+    # plotting.show()
 
 
 def plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri):
@@ -122,10 +122,10 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
     train_img = Image.open(img_dir).convert('RGB')
 
     # Plot the image
-    #plt.figure()
-    #plt.axis('off')
-    #plt.imshow(train_img)
-    #plt.title('Training image: ' + str(img + 1));
+    # plt.figure()
+    # plt.axis('off')
+    # plt.imshow(train_img)
+    # plt.title('Training image: ' + str(img + 1));
 
     if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
         roi_class = 'prf-visualrois'
@@ -176,9 +176,11 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
         colorbar=True,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    #plotting.show()
+    # plotting.show()
+
+
 # this doesnt work
-def anotherOne(args, lh_correlation,rh_correlation):
+def anotherOne(args, lh_correlation, rh_correlation):
     hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
 
     # Load the brain surface map of all vertices
@@ -205,7 +207,9 @@ def anotherOne(args, lh_correlation,rh_correlation):
         title='Encoding accuracy, ' + hemisphere + ' hemisphere'
     )
     plotting.show()
-def AccuracyROI(args,lh_correlation,rh_correlation):
+
+
+def AccuracyROI(args, lh_correlation, rh_correlation):
     # Load the ROI classes mapping dictionaries
     roi_mapping_files = ['mapping_prf-visualrois.npy', 'mapping_floc-bodies.npy',
                          'mapping_floc-faces.npy', 'mapping_floc-places.npy',
@@ -245,6 +249,9 @@ def AccuracyROI(args,lh_correlation,rh_correlation):
                 lh_roi_correlation.append(lh_correlation[lh_roi_idx])
                 rh_roi_correlation.append(rh_correlation[rh_roi_idx])
     roi_names.append('All vertices')
+    print(sum(lh_correlation)/len(lh_correlation))
+    print(sum(rh_correlation)/len(rh_correlation))
+
     lh_roi_correlation.append(lh_correlation)
     rh_roi_correlation.append(rh_correlation)
 

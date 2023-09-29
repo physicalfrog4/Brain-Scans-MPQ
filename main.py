@@ -18,16 +18,17 @@ from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr as corr
 
 import LEM
+import LEM2
 import visualize
 
 
 def main():
     print("Hello World!")
     if platform == 'jupyter_notebook':
-        data_dir = 'C:\GitHub\Brain-Scans-MQP\FMRI-Data'
+        data_dir = '../MQP/algonauts_2023_challenge_data/'
         parent_submission_dir = 'C:\GitHub\Brain-Scans-MQP\submissiondir'
     subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
-    #global args
+    # global args
     args = argObj(data_dir, parent_submission_dir, subj)
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
@@ -49,7 +50,7 @@ def main():
     # {allow-input: true}
 
     # visualize.plotAllVertices(args)
-    #visualize.plotROI(args, hemisphere, roi)
+    # visualize.plotROI(args, hemisphere, roi)
     # plot the ROI
     # visualize.plotROI(args, 'right', roi)
     # plotting.show()
@@ -72,25 +73,19 @@ def main():
 
     # visualize.plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri)
     # PLot ROI from FRMI and IMG
-    #visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
+    # visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
     plotting.show()
     # 2
+    print("________ ALEX NET ________")
+    LEM.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+    print("________ GOOGLE NET ________")
+    LEM2.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
 
 
+    # LEM.alexnet(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader,batch_size)
 
-    #batch_size = 0
-
-
-    LEM.splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
-    del lh_fmri, rh_fmri
-
-    #LEM.alexnet(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader,batch_size)
-
-
-    #visualize.anotherOne(args, LEM.lh_correlation, LEM.rh_correlation)
-    #visualize.AccuracyROI(args, LEM.lh_correlation, LEM.rh_correlation)
-
-
+    # visualize.anotherOne(args, LEM.lh_correlation, LEM.rh_correlation)
+    # visualize.AccuracyROI(args, LEM.lh_correlation, LEM.rh_correlation)
 
 
 class argObj:
@@ -107,15 +102,14 @@ class argObj:
 
 
 def unzipData():
-    with zipfile.ZipFile("daradir/subj01.zip", "r") as zip_ref:
+    with zipfile.ZipFile("daradir/subj02.zip", "r") as zip_ref:
         zip_ref.extractall("FMRI-Data")
 
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
+    device = 'cpu'  # @param ['cpu', 'cuda'] {allow-input: true}
     device = torch.device(device)
-    print(torch.cuda.is_available())
     # uncomment this when first used to unzip the patient data
     # unzipData()
-    #main()
+    main()
