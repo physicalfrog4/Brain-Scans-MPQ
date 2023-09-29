@@ -8,6 +8,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import IncrementalPCA
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models
+from torchvision.models import GoogLeNet_Weights
 from torchvision.models.feature_extraction import get_graph_node_names, create_feature_extractor
 from tqdm import tqdm
 from PIL import Image
@@ -20,7 +21,9 @@ import visualize
 class GoogLeNet(nn.Module):
     def __init__(self):
         super(GoogLeNet, self).__init__()
-        self.model = models.googlenet(pretrained=True)
+        self.model = models.googlenet(init_weights=True)
+        #maybe use this
+        #self.model = models.googlenet(weights = GoogLeNet_Weights.DEFAULT)
         self.model.aux_logits = False  # Disable auxiliary classifiers
 
     def forward(self, x):
@@ -55,7 +58,7 @@ def splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, 
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 350  # @param
+    batch_size = 225  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
@@ -94,7 +97,7 @@ def googlenet(args, train_imgs_dataloader, val_imgs_dataloader, test_imgs_datalo
     model.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     model.eval()  # set the model to evaluation mode, since you are not training it
     train_nodes, _ = get_graph_node_names(model)
-    #print(train_nodes)
+    # print(train_nodes)
     model_layer = "model.fc"
     feature_extractor = create_feature_extractor(model, return_nodes=[model_layer])
     pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size)
@@ -163,7 +166,7 @@ def extract_features(feature_extractor, dataloader, pca):
 
 def fit_pca(feature_extractor, dataloader, batch_size):
     # Define PCA parameters
-    pca = IncrementalPCA(n_components=100, batch_size=batch_size)
+    pca = IncrementalPCA(n_components=57, batch_size=batch_size)
 
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -193,4 +196,3 @@ class ImageDataset(Dataset):
         if self.transform:
             img = self.transform(img).to('cuda')
         return img
-
