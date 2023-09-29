@@ -118,4 +118,4 @@ if __name__ == "__main__":
     print(torch.cuda.is_available())
     # uncomment this when first used to unzip the patient data
     # unzipData()
-    #main()
+    main()
