@@ -82,7 +82,7 @@ def splitData(args,train_img_list, test_img_list, train_img_dir, test_img_dir, l
 def alexnet(args,train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, lh_fmri_train, rh_fmri_train,
             lh_fmri_val, rh_fmri_val):
     model = torch.hub.load('pytorch/vision:v0.10.0', 'alexnet')
-    model.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
+    model.to('cpu')  # send the model to the chosen device ('cpu' or 'cuda')
     model.eval()  # set the model to evaluation mode, since you are not training it
     train_nodes, _ = get_graph_node_names(model)
     print(train_nodes)
@@ -149,7 +149,7 @@ def extract_features(feature_extractor, dataloader, pca):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Apply PCA transform
         #ft = pca.transform(ft.cpu().detach().numpy())
-        ft = pca.transform(ft.cuda().detach().numpy())
+        ft = pca.transform(ft.cpu().detach().numpy())
         features.append(ft)
     return np.vstack(features)
 
@@ -166,7 +166,7 @@ def fit_pca(feature_extractor, dataloader, batch_size):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Fit PCA to batch
         #pca.partial_fit(ft.detach().cpu().numpy())
-        pca.partial_fit(ft.detach().cuda().numpy())
+        pca.partial_fit(ft.detach().cpu().numpy())
     return pca
 
 
@@ -184,5 +184,5 @@ class ImageDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
-            img = self.transform(img).to('cuda')
+            img = self.transform(img).to('cpu')
         return img

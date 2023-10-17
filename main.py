@@ -22,14 +22,17 @@ import visualize
 
 
 def main():
-    print("Hello World!")
-    if platform == 'jupyter_notebook':
-        data_dir = 'C:\GitHub\Brain-Scans-MQP\FMRI-Data'
-        parent_submission_dir = 'C:\GitHub\Brain-Scans-MQP\submissiondir'
-    subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
-    #global args
+    # setting up the directories and ARGS
+    data_dir = ''
+    parent_submission_dir = '../submission'
+    subj = 8
     args = argObj(data_dir, parent_submission_dir, subj)
+
+    # FMRI Data
+
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
+    print(fmri_dir)
+    print(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 
@@ -107,15 +110,15 @@ class argObj:
 
 
 def unzipData():
-    with zipfile.ZipFile("daradir/subj01.zip", "r") as zip_ref:
-        zip_ref.extractall("FMRI-Data")
+    with zipfile.ZipFile("datadir/subj04.zip", "r") as zip_ref:
+        zip_ref.extractall("datadir")
 
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
+    device = 'cpu'  # @param ['cpu', 'cuda'] {allow-input: true}
     device = torch.device(device)
-    print(torch.cuda.is_available())
+    #print(torch.cuda.is_available())
     # uncomment this when first used to unzip the patient data
-    # unzipData()
+    #nzipData()
     main()
