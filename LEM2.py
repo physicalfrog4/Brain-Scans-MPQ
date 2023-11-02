@@ -22,8 +22,8 @@ class GoogLeNet(nn.Module):
     def __init__(self):
         super(GoogLeNet, self).__init__()
         self.model = models.googlenet(init_weights=True)
-        #maybe use this
-        #self.model = models.googlenet(weights = GoogLeNet_Weights.DEFAULT)
+        # maybe use this
+        # self.model = models.googlenet(weights = GoogLeNet_Weights.DEFAULT)
         self.model.aux_logits = False  # Disable auxiliary classifiers
 
     def forward(self, x):
@@ -58,7 +58,7 @@ def splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, 
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 225  # @param
+    batch_size = 100  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))

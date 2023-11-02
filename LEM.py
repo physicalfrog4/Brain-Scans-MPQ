@@ -10,7 +10,7 @@ import numpy as np
 from pathlib import Path
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import IncrementalPCA
-from sklearn.metrics import accuracy_score, mean_absolute_error
+from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.model_selection import KFold, cross_val_score, GridSearchCV
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models
@@ -50,7 +50,7 @@ def splitData(args, modelGN,modelLR, train_img_list, test_img_list, train_img_di
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 50  # @param
+    batch_size = 75  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
@@ -98,7 +98,7 @@ def NNclassify(args, modelGN, modelLR, train_imgs_dataloader, val_imgs_dataloade
     print('(Validation stimulus images × PCA features)')
 
     print('\nTest images features:')
-    print(features_val.shape)
+    print(features_test.shape)
     print('(Test stimulus images × PCA features)')
 
     del modelGN, pca
@@ -117,7 +117,7 @@ def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, featu
 
 
     # Use K-fold cross-validation with MAE scoring
-    # cv = KFold(n_splits=5, shuffle=True, random_state=42)
+    cv = KFold(n_splits=5, shuffle=True, random_state=42)
     mae_scores_lh = []
     mae_scores_rh = []
 
@@ -132,9 +132,9 @@ def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, featu
     mae = mean_absolute_error(lh_fmri_val, lh_fmri_val_pred)
     print("Mean Absolute Error on Validation Data:", mae)
 
-    print("Accuracy Scores")
+    #print("Accuracy Scores")
     # Calculate accuracy scores or other relevant metrics if needed
-    #print(accuracy_score(lh_fmri_train, lh_fmri_val_pred))
+    #print(balanced_accuracy_score(lh_fmri_val_pred,lh_fmri_test_pred))
 
     # Fit linear regressions on the training data
 
@@ -143,11 +143,11 @@ def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, featu
 
     rh_fmri_val_pred = modelLR.predict(features_val)
     rh_fmri_test_pred = modelLR.predict(features_test)
-    #print(accuracy_score(rh_fmri_train, rh_fmri_val_pred))
+    #print(accuracy_score(rh_fmri_val_pred, rh_fmri_test_pred))
 
-    # visualize.plotFMRI_ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
+    #visualize.plotFMRI_ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
     # print("roi_img")
-    # visualize.ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
+    #visualize.ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
     predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
 
@@ -179,13 +179,13 @@ def extract_features(feature_extractor, dataloader, pca):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Apply PCA transform
         ft = pca.transform(ft.cpu().detach().numpy())
-        # ft = pca.transform(ft.cuda().detach().numpy())
+        #ft = pca.transform(ft.cuda().detach().numpy())
         features.append(ft)
     return np.vstack(features)
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
-    torch.device = 'cpu'
+    torch.device = 'cuda'
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
 
@@ -197,7 +197,7 @@ def fit_pca(feature_extractor, dataloader, batch_size):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Fit PCA to batch
         pca.partial_fit(ft.detach().cpu().numpy())
-        # pca.partial_fit(ft.detach().cuda().numpy())
+        #pca.partial_fit(ft.detach().cuda().numpy())
     return pca
 
 
@@ -215,5 +215,5 @@ class ImageDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
-            img = self.transform(img).to('cpu')
+            img = self.transform(img).to('cuda')
         return img

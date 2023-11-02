@@ -59,21 +59,21 @@ def main():
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
-    modelYOLO = YOLO('yolov8n-cls.pt')
+    #modelYOLO = YOLO('yolov8n-cls.pt')
     # predicts what the image is based on the preloaded YOLO model.
-    image_results = modelYOLO.predict(train_img_dir)
+    #image_results = modelYOLO.predict(test_img_dir)
 
-    del modelYOLO
+    #del modelYOLO
     # take the predictions and categorizes them
-    ImgClasses = moreWords(image_results)
-    # print(ImgClasses)
+    #ImgClasses = moreWords(image_results)
+    #print(ImgClasses)
 
     img = 0
 
     # visualize.plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri)
     # PLot ROI from FRMI and IMG
-    visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
-    plotting.show()
+    #visualize.plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere)
+    #plotting.show()
     # 2
     print("________ MOBILE NET ________")
     modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
@@ -82,8 +82,8 @@ def main():
     modelLR = LinearRegression()
     LEM.splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
     torch.cuda.empty_cache()
-    print("________ GOOGLE NET ________")
-    LEM2.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+    #print("________ GOOGLE NET ________")
+    #LEM2.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
 
     # LEM.alexnet(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader,batch_size)
 
