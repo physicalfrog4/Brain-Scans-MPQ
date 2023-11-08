@@ -1,6 +1,5 @@
 import random
 from statistics import mean
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -26,8 +25,8 @@ import visualize
 
 def splitData(args, modelGN,modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri):
     rand_seed = random.randint(0,100)
-    print(rand_seed)
     np.random.seed(rand_seed)
+    
     global lh_correlation
     global rh_correlation
 
@@ -50,7 +49,7 @@ def splitData(args, modelGN,modelLR, train_img_list, test_img_list, train_img_di
         transforms.ToTensor(),  # convert the images to a PyTorch tensor
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize the images color channels
     ])
-    batch_size = 75  # @param
+    batch_size = 100  # @param
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
@@ -72,7 +71,11 @@ def splitData(args, modelGN,modelLR, train_img_list, test_img_list, train_img_di
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_train = rh_fmri[idxs_train]
     rh_fmri_val = rh_fmri[idxs_val]
-    # del lh_fmri, rh_fmri
+    del lh_fmri, rh_fmri
+    lh_fmri_train = normalize_fmri_data(lh_fmri_train)
+    rh_fmri_train = normalize_fmri_data(rh_fmri_train)
+    lh_fmri_val = normalize_fmri_data(lh_fmri_val)
+    rh_fmri_val = normalize_fmri_data(rh_fmri_val)
 
     NNclassify(args, modelGN, modelLR, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size,
                lh_fmri_train, rh_fmri_train, lh_fmri_val, rh_fmri_val)
@@ -103,25 +106,12 @@ def NNclassify(args, modelGN, modelLR, train_imgs_dataloader, val_imgs_dataloade
 
     del modelGN, pca
     linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val)
-    # Define your data: features, lh_fmri, rh_fmri
-
-    # lh_fmri_val_pred, rh_fmri_val_pred = perform_cross_validation(features_train, lh_fmri_train, rh_fmri_train, k=3)
     print("Accuracy Scores")
 
 
 def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val,
               rh_fmri_val):
     print("Start Linear Map")
-
-    # Create a linear regression model
-
-
-    # Use K-fold cross-validation with MAE scoring
-    cv = KFold(n_splits=5, shuffle=True, random_state=42)
-    mae_scores_lh = []
-    mae_scores_rh = []
-
-
     # Fit a linear regression model on the training data
     modelLR = LinearRegression().fit(features_train, lh_fmri_train)
 
@@ -132,22 +122,12 @@ def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, featu
     mae = mean_absolute_error(lh_fmri_val, lh_fmri_val_pred)
     print("Mean Absolute Error on Validation Data:", mae)
 
-    #print("Accuracy Scores")
-    # Calculate accuracy scores or other relevant metrics if needed
-    #print(balanced_accuracy_score(lh_fmri_val_pred,lh_fmri_test_pred))
-
-    # Fit linear regressions on the training data
-
     modelLR = LinearRegression().fit(features_train, rh_fmri_train)
+    
     # Use fitted linear regressions to predict the validation and test fMRI data
-
     rh_fmri_val_pred = modelLR.predict(features_val)
     rh_fmri_test_pred = modelLR.predict(features_test)
-    #print(accuracy_score(rh_fmri_val_pred, rh_fmri_test_pred))
-
-    #visualize.plotFMRI_ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
-    # print("roi_img")
-    #visualize.ROI_IMG(args, lh_fmri_val_pred, rh_fmri_val_pred)
+    # predict the Accuracy
     predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
 
@@ -164,10 +144,9 @@ def predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_
     # Correlate each predicted RH vertex with the corresponding ground truth vertex
     for v in tqdm(range(rh_fmri_val_pred.shape[1])):
         rh_correlation[v] = corr(rh_fmri_val_pred[:, v], rh_fmri_val[:, v])[0]
-
-    # visualize.anotherOne(args, lh_correlation, rh_correlation)
-    visualize.AccuracyROI(args, lh_correlation, rh_correlation)
-    print("finished LEM2")
+    # print the results (*100 because I like how it looks)
+    print('average lh ', average(lh_correlation)*100, 'average rh ', average(rh_correlation)*100)
+   
 
 
 def extract_features(feature_extractor, dataloader, pca):
@@ -182,6 +161,13 @@ def extract_features(feature_extractor, dataloader, pca):
         #ft = pca.transform(ft.cuda().detach().numpy())
         features.append(ft)
     return np.vstack(features)
+    
+def normalize_fmri_data(data):
+    # Perform normalization on the data
+    mean_value = np.mean(data)
+    std_dev = np.std(data)
+    normalized_data = (data - mean_value) / std_dev
+    return normalized_data
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
@@ -197,7 +183,6 @@ def fit_pca(feature_extractor, dataloader, batch_size):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Fit PCA to batch
         pca.partial_fit(ft.detach().cpu().numpy())
-        #pca.partial_fit(ft.detach().cuda().numpy())
     return pca
 
 
