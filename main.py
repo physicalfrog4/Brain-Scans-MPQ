@@ -1,16 +1,8 @@
-from nilearn import plotting
 import os
-import zipfile
 import numpy as np
 import torch
 from sklearn.linear_model import LinearRegression
-from ultralytics import YOLO
-
 import LEM
-# import classes
-import LEM2
-import visualize
-from words import moreWords
 
 
 def main():
@@ -51,14 +43,14 @@ def main():
     train_img_file = train_img_list[0]
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
-    
+
     # Uncomment this if you want the word classifier
-    #modelYOLO = YOLO('yolov8n-cls.pt')
+    # modelYOLO = YOLO('yolov8n-cls.pt')
     # predicts what the image is based on the preloaded YOLO model.
-    #image_results = modelYOLO.predict(test_img_dir)
-    #del modelYOLO
+    # image_results = modelYOLO.predict(test_img_dir)
+    # del modelYOLO
     # take the predictions and categorizes them
-    #ImgClasses = moreWords(image_results)
+    # ImgClasses = moreWords(image_results)
     # Word Classifier code ends here
 
     print("________ MOBILE NET ________")
@@ -68,9 +60,14 @@ def main():
     modelLR = LinearRegression()
     LEM.splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
     torch.cuda.empty_cache()
-    
-    #print("________ GOOGLE NET ________")
-    #LEM2.splitData(args, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+
+    # print("________ GOOGLE NET ________")
+    # modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
+    # modelGN.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
+    # modelGN.eval()  # set the model to evaluation mode, since you are not training it
+    # modelLR = LinearRegression()
+    # LEM2.splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+
 
 class argObj:
     def __init__(self, data_dir, parent_submission_dir, subj):
@@ -83,6 +80,7 @@ class argObj:
         # Create the submission directory if not existing
         # if not os.path.isdir(self.subject_submission_dir):
         # os.makedirs(self.subject_submission_dir)
+
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}

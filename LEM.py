@@ -3,6 +3,7 @@ from statistics import mean
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from numpy import average
 from sklearn.linear_model import LinearRegression
 import torchvision.transforms as transforms
 import numpy as np
@@ -22,11 +23,10 @@ from sklearn.linear_model import Ridge
 import visualize
 
 
-
-def splitData(args, modelGN,modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri):
-    rand_seed = random.randint(0,100)
+def splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri):
+    rand_seed = random.randint(0, 100)
     np.random.seed(rand_seed)
-    
+
     global lh_correlation
     global rh_correlation
 
@@ -105,7 +105,8 @@ def NNclassify(args, modelGN, modelLR, train_imgs_dataloader, val_imgs_dataloade
     print('(Test stimulus images × PCA features)')
 
     del modelGN, pca
-    linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val)
+    linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val,
+              rh_fmri_val)
     print("Accuracy Scores")
 
 
@@ -123,7 +124,7 @@ def linearMap(args, modelLR, features_train, lh_fmri_train, rh_fmri_train, featu
     print("Mean Absolute Error on Validation Data:", mae)
 
     modelLR = LinearRegression().fit(features_train, rh_fmri_train)
-    
+
     # Use fitted linear regressions to predict the validation and test fMRI data
     rh_fmri_val_pred = modelLR.predict(features_val)
     rh_fmri_test_pred = modelLR.predict(features_test)
@@ -145,8 +146,7 @@ def predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_
     for v in tqdm(range(rh_fmri_val_pred.shape[1])):
         rh_correlation[v] = corr(rh_fmri_val_pred[:, v], rh_fmri_val[:, v])[0]
     # print the results (*100 because I like how it looks)
-    print('average lh ', average(lh_correlation)*100, 'average rh ', average(rh_correlation)*100)
-   
+    print('average lh ', average(lh_correlation) * 100, 'average rh ', average(rh_correlation) * 100)
 
 
 def extract_features(feature_extractor, dataloader, pca):
@@ -158,10 +158,11 @@ def extract_features(feature_extractor, dataloader, pca):
         ft = torch.hstack([torch.flatten(l, start_dim=1) for l in ft.values()])
         # Apply PCA transform
         ft = pca.transform(ft.cpu().detach().numpy())
-        #ft = pca.transform(ft.cuda().detach().numpy())
+        # ft = pca.transform(ft.cuda().detach().numpy())
         features.append(ft)
     return np.vstack(features)
-    
+
+
 def normalize_fmri_data(data):
     # Perform normalization on the data
     mean_value = np.mean(data)
