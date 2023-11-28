@@ -59,8 +59,9 @@ def main():
 
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
     # change this later to train img dir
-    ImgClasses = wordClassifier(test_img_dir)
+    ImgClasses = wordClassifier(train_img_dir)
     batch_size = 100
+    length = len(idxs_train)
 
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
@@ -78,7 +79,7 @@ def main():
     rh_fmri_val = normalize_fmri_data(rh_fmri_val)
 
     # uncomment this one
-    # image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train, ImgClasses)
+    image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train, ImgClasses)
     # image_class_data = classFMRIfromIMGandROI(args, test_img_dir, test_img_list, lh_fmri_train, rh_fmri_train,
     #                                          ImgClasses)
 

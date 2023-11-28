@@ -8,9 +8,9 @@ from sklearn.model_selection import train_test_split
 
 
 
-def classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses):
+def classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses, length):
     excelData = []
-    for img in range(len(ImgClasses)):
+    for img in range(len(length)):
         hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
         listroi = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA",
                    "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2",
