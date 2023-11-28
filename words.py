@@ -1,6 +1,19 @@
 import gensim.downloader as api
 from matplotlib import pyplot as plt
 from nltk.corpus import words
+from ultralytics import YOLO
+
+
+def wordClassifier(train_img_list):
+    # Uncomment this if you want the word classifier
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    # predicts what the image is based on the preloaded YOLO model.
+    image_results = modelYOLO.predict(train_img_list)
+    del modelYOLO
+    # take the predictions and categorizes them
+    ImgClasses = moreWords(image_results)
+    return ImgClasses
+
 
 # Main function used to classify the images into a category
 def moreWords(results):
@@ -18,7 +31,8 @@ def moreWords(results):
             newWord = result.names[class1].replace("_", " ")
             listofsyn.append(newWord)
         # finds top 5 words associated with the prediction
-        category = similarWords5(w2v, listofsyn)
+        category = similarWords3(w2v, listofsyn)
+        # category = newWord
         # if there is a category, classify it to the categories we predefine for the model
         if category != "None":
             category = classifytoClasses(w2v, category)
@@ -45,6 +59,7 @@ def moreWords(results):
     plt.title('Category Counts')
     plt.gca().invert_yaxis()  # Invert the y-axis to show the top category at the top
     plt.show()
+    return img_and_category
 
 
 def similarWords5(model, input_word):
@@ -96,8 +111,8 @@ def similarWords5(model, input_word):
         new_word = "No suitable word found"
         return "None"
 
-    print(f"Input Words: {input_word}")
-    print(f"New Word: {new_word}")
+    # print(f"Input Words: {input_word}")
+    # print(f"New Word: {new_word}")
     return new_word
 
 
@@ -134,3 +149,36 @@ def classifytoClasses(model, input_word):
 
         similarities[predefined_word] = similarity
     return returnval
+
+
+def similarWords3(model, input_words):
+    similar_words = []
+    best_similarity_score = -1  # Initialize with a very low value
+
+    # Get the list of English words from NLTK corpus
+    english_words = set(words.words())
+
+    # Get similar words to each input word
+    for word in input_words:
+        try:
+            similar_words.extend(model.most_similar(word, topn=5))
+        except KeyError as e:
+            pass
+
+    # Combine and filter similar words from all input words
+    for word, similarity_score in similar_words:
+        # Check if the word is an English word and has a higher similarity score than the current best score
+        if word in english_words and similarity_score > best_similarity_score:
+            best_similarity_score = similarity_score
+            best_word = word
+
+    # Check if a best word was found
+    if best_similarity_score > -1:
+        new_word = best_word
+    else:
+        new_word = "No suitable word found"
+        return "None"
+
+    # print(f"Input Words: {input_words}")
+    # print(f"New Word: {new_word}")
+    return new_word

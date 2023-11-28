@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import torch
-from sklearn.linear_model import LinearRegression
-import LEM
-
+import data
+from words import wordClassifier
+from data import normalize_fmri_data
+from LEM import extract_data_features, linearMap, predAccuracy
+from classification import classFMRIfromIMGandROI
 
 def main():
     if platform == 'jupyter_notebook':
@@ -54,19 +56,45 @@ def main():
     # Word Classifier code ends here
 
     print("________ MOBILE NET ________")
+
+    idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
+    # change this later to train img dir
+    ImgClasses = wordClassifier(train_img_dir)
+    batch_size = 100
+    length = len(idxs_train)
+
+    train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
+        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
+
+    lh_fmri_train = lh_fmri[idxs_train]
+    lh_fmri_val = lh_fmri[idxs_val]
+    rh_fmri_train = rh_fmri[idxs_train]
+    rh_fmri_val = rh_fmri[idxs_val]
+    del lh_fmri, rh_fmri
+
+    # Normalize the Data
+    lh_fmri_train = normalize_fmri_data(lh_fmri_train)
+    rh_fmri_train = normalize_fmri_data(rh_fmri_train)
+    lh_fmri_val = normalize_fmri_data(lh_fmri_val)
+    rh_fmri_val = normalize_fmri_data(rh_fmri_val)
+
+    # uncomment this one
+    image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train, ImgClasses)
+    # image_class_data = classFMRIfromIMGandROI(args, test_img_dir, test_img_list, lh_fmri_train, rh_fmri_train,
+    #                                          ImgClasses)
+
+    # Google Net Model
     modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
     modelGN.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     modelGN.eval()  # set the model to evaluation mode, since you are not training it
-    modelLR = LinearRegression()
-    LEM.splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
-    torch.cuda.empty_cache()
 
-    # print("________ GOOGLE NET ________")
-    # modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    # modelGN.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
-    # modelGN.eval()  # set the model to evaluation mode, since you are not training it
-    # modelLR = LinearRegression()
-    # LEM2.splitData(args, modelGN, modelLR, train_img_list, test_img_list, train_img_dir, test_img_dir, lh_fmri, rh_fmri)
+    features_train, features_val, features_test = (
+        extract_data_features(modelGN, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size))
+    del modelGN
+    lh_fmri_val_pred, rh_fmri_val_pred, lh_fmri_test_pred, rh_fmri_test_pred = (
+        linearMap(features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val))
+
+    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
 
 class argObj:
