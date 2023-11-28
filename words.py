@@ -1,4 +1,5 @@
 import gensim.downloader as api
+from PIL import Image
 from matplotlib import pyplot as plt
 from nltk.corpus import words
 from ultralytics import YOLO
@@ -6,9 +7,31 @@ from ultralytics import YOLO
 
 def wordClassifier(train_img_list):
     # Uncomment this if you want the word classifier
-    modelYOLO = YOLO('yolov8n-cls.pt')
+    #modelYOLO = YOLO('yolov8n.pt')
+    #results = modelYOLO.train(data='coco.yaml', epochs=1, imgsz=640)
+    #modelYOLO.val()
+    modelYOLO= YOLO('yolov8n-cls.pt')
     # predicts what the image is based on the preloaded YOLO model.
     image_results = modelYOLO.predict(train_img_list)
+    img = 'subj01/test_split/test_images/test-0050_nsd-25999.png'
+    #prediction = modelYOLO.predict(train_img_list)
+    # Perform predictions on the list of images
+    print("train img list", train_img_list)
+    for r in image_results:
+        print(r.probs.top5)
+        temp_list = r.probs.top5
+        score_list = r.probs.top5conf
+        print(score_list)
+        imageList = r.names
+        for i in temp_list:
+            print(imageList[i])
+        print("\n")
+
+
+
+    #print(prediction)
+
+
     del modelYOLO
     # take the predictions and categorizes them
     ImgClasses = moreWords(image_results)
@@ -23,6 +46,7 @@ def moreWords(results):
     w2v = api.load("word2vec-google-news-300")
 
     for result in results:
+        print(result)
         probs = result.probs
         class_index = probs.top5
         listofsyn = []
@@ -58,7 +82,7 @@ def moreWords(results):
     plt.ylabel('Category')
     plt.title('Category Counts')
     plt.gca().invert_yaxis()  # Invert the y-axis to show the top category at the top
-    plt.show()
+    #plt.show()
     return img_and_category
 
 
@@ -182,3 +206,7 @@ def similarWords3(model, input_words):
     # print(f"Input Words: {input_words}")
     # print(f"New Word: {new_word}")
     return new_word
+
+
+
+
