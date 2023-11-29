@@ -84,8 +84,6 @@ def main():
     print(length)
     image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train,
                                               ImgClasses, length)
-    exit()
-
     # Google Net Model
     modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
     modelGN.to('cpu')  # send the model to the chosen device ('cpu' or 'cuda')
