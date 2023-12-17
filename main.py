@@ -17,6 +17,14 @@ def main():
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
+    batch_size = 100
+    print("________ Process Data ________")
+    # Normalize Data Before Split
+    lh_fmri = normalize_fmri_data(lh_fmri)
+    print(lh_fmri)
+    print("- - - - - - - -")
+    rh_fmri = normalize_fmri_data(rh_fmri)
+    print(rh_fmri)
 
     print('LH training fMRI data shape:')
     print(lh_fmri.shape)
@@ -46,23 +54,7 @@ def main():
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
-    # Uncomment this if you want the word classifier
-    # modelYOLO = YOLO('yolov8n-cls.pt')
-    # predicts what the image is based on the preloaded YOLO model.
-    # image_results = modelYOLO.predict(test_img_dir)
-    # del modelYOLO
-    # take the predictions and categorizes them
-    # ImgClasses = moreWords(image_results)
-    # Word Classifier code ends here
-
-    print("________ MOBILE NET ________")
-
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
-    # change this later to train img dir
-    ImgClasses = wordClassifier(train_img_dir)
-    batch_size = 100
-    length = len(idxs_train)
-
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
 
@@ -71,18 +63,13 @@ def main():
     rh_fmri_train = rh_fmri[idxs_train]
     rh_fmri_val = rh_fmri[idxs_val]
     del lh_fmri, rh_fmri
+    print("________ Image Classification ________")
+    length = len(idxs_train)
+    ImgClasses = wordClassifier(train_img_dir)
+    image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train,
+                                              ImgClasses, length)
 
-    # Normalize the Data
-    lh_fmri_train = normalize_fmri_data(lh_fmri_train)
-    rh_fmri_train = normalize_fmri_data(rh_fmri_train)
-    lh_fmri_val = normalize_fmri_data(lh_fmri_val)
-    rh_fmri_val = normalize_fmri_data(rh_fmri_val)
-
-    # uncomment this one
-    image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train, ImgClasses)
-    # image_class_data = classFMRIfromIMGandROI(args, test_img_dir, test_img_list, lh_fmri_train, rh_fmri_train,
-    #                                          ImgClasses)
-
+    print("________ MOBILE NET ________")
     # Google Net Model
     modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
     modelGN.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')

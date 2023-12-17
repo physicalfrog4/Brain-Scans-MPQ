@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader, Dataset
 from PIL import Image
 
 
-
 def splitdata(train_img_list, test_img_list, train_img_dir):
     rand_seed = random.randint(0, 100)
     np.random.seed(rand_seed)
@@ -24,13 +23,13 @@ def splitdata(train_img_list, test_img_list, train_img_dir):
 
     # No need to shuffle or split the test stimulus images
     idxs_test = np.arange(len(test_img_list))
-    print("idx_val\n", idxs_val)
+    # print("idx_val\n", idxs_val)
 
     val_img_list = []
     for i in idxs_train:
         img_dir = os.path.join(train_img_dir, train_img_list[i])
         train_img = Image.open(img_dir).convert('RGB')
-        print(train_img)
+        # print(train_img)
         val_img_list.append(train_img)
     print('Training stimulus images: ' + format(len(idxs_train)))
     print('\nValidation stimulus images: ' + format(len(idxs_val)))
@@ -84,7 +83,30 @@ class ImageDataset(Dataset):
 
 
 def normalize_fmri_data(data):
+    # Shift the data so that the minimum value becomes zero
     min_value = np.min(data)
-    max_value = np.max(data)
-    normalized_data = (data - min_value) / (max_value - min_value)
+    shifted_data = data - min_value
+
+    # Scale the data to the range [0, 1]
+    max_value = np.max(shifted_data)
+    print(min_value, max_value)
+
+    if max_value == 0:
+        # Handle the case where all values are zero to avoid division by zero
+        normalized_data = shifted_data
+    else:
+        normalized_data = shifted_data / max_value
+
     return normalized_data
+    # min_value = np.min(data)
+    # max_value = np.max(data)
+    # normalized_data = (data - min_value) / (max_value - min_value)
+    # return normalized_data
+
+
+def make_negative_zero(matrix):
+    # Convert the matrix to a  NumPy array
+    matrix_array = np.array(matrix)
+    # Replace negative values with zero
+    matrix_array[matrix_array < 0] = 0
+    return matrix_array

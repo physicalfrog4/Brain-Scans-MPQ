@@ -1,4 +1,5 @@
 import gensim.downloader as api
+from PIL import Image
 from matplotlib import pyplot as plt
 from nltk.corpus import words
 from ultralytics import YOLO
@@ -6,12 +7,31 @@ from ultralytics import YOLO
 
 def wordClassifier(train_img_list):
     # Uncomment this if you want the word classifier
-    modelYOLO = YOLO('yolov8n-cls.pt')
+    #modelYOLO = YOLO('yolov8n.pt')
+    #results = modelYOLO.train(data='coco.yaml', epochs=1, imgsz=640)
+    #modelYOLO.val()
+    modelYOLO= YOLO('yolov8n-cls.pt')
     # predicts what the image is based on the preloaded YOLO model.
     image_results = modelYOLO.predict(train_img_list)
+    img = 'subj01/test_split/test_images/test-0050_nsd-25999.png'
+    #prediction = modelYOLO.predict(train_img_list)
+    # Perform predictions on the list of images
+    print("train img list", train_img_list)
+    for r in image_results:
+        #print(r.probs.top5)
+        temp_list = r.probs.top5
+        score_list = r.probs.top5conf
+        #print(score_list)
+        imageList = r.names
+        #for i in temp_list:
+         #   print(imageList[i])
+        #print("\n")
+    #print(prediction)
+
     del modelYOLO
     # take the predictions and categorizes them
     ImgClasses = moreWords(image_results)
+
     return ImgClasses
 
 
@@ -23,42 +43,43 @@ def moreWords(results):
     w2v = api.load("word2vec-google-news-300")
 
     for result in results:
+
         probs = result.probs
         class_index = probs.top5
         listofsyn = []
+
         # clean data
         for class1 in class_index:
             newWord = result.names[class1].replace("_", " ")
             listofsyn.append(newWord)
+
         # finds top 5 words associated with the prediction
         category = similarWords3(w2v, listofsyn)
         # category = newWord
+        print(category)
         # if there is a category, classify it to the categories we predefine for the model
         if category != "None":
             category = classifytoClasses(w2v, category)
+            print(category)
             img_and_category.append(category)
         else:
-            img_and_category.append("None")
+            print("-1")
+            img_and_category.append(-1)
+
         # count the different categories for analytics
         if category in category_counts:
             category_counts[category] += 1
         else:
             category_counts[category] = 1
             category_names.append(category)
-    del w2v
 
+    del w2v
     categories = list(category_counts.keys())
     counts = list(category_counts.values())
 
-    # Create a bar chart, because I like charts -> Ali
-    plt.figure(figsize=(12, 12))
-    plt.barh(categories, counts, color='skyblue')
-
-    plt.xlabel('Count')
-    plt.ylabel('Category')
-    plt.title('Category Counts')
-    plt.gca().invert_yaxis()  # Invert the y-axis to show the top category at the top
-    plt.show()
+    categories = [-1 if item == 'None' else item for item in categories]
+    print(categories, len(categories))
+    print(counts, len(counts))
     return img_and_category
 
 
@@ -139,16 +160,18 @@ def classifytoClasses(model, input_word):
     # Calculate word similarities
     similarities = {}
     threshold = -1
-    returnval = "None"
+    returnval = "-1"
     # Look through the predefine word to categorize the words
     for predefined_word in predefined_words:
         similarity = model.similarity(input_word, predefined_word)
         if similarity > threshold:
             returnval = predefined_word
             threshold = similarity
-
+        #rint(predefined_words.index(returnval))
+        index = predefined_words.index(returnval)
         similarities[predefined_word] = similarity
-    return returnval
+    #print(index)
+    return index
 
 
 def similarWords3(model, input_words):
@@ -182,3 +205,7 @@ def similarWords3(model, input_words):
     # print(f"Input Words: {input_words}")
     # print(f"New Word: {new_word}")
     return new_word
+
+
+
+

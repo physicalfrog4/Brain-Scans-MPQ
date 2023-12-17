@@ -3,14 +3,20 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, accuracy_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
-
+from sklearn.tree import DecisionTreeClassifier
 
 
 def classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses, length):
     excelData = []
-    for img in range(len(length)):
+    # delete this
+    #length = len(ImgClasses)
+    for img in range(length):
+        #print(ImgClasses)
+        #print(ImgClasses[img])
+
+        row_data = [ImgClasses[img]]
         hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
         listroi = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA",
                    "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2",
@@ -59,27 +65,47 @@ def classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri
                 fsaverage_response[np.where(fsaverage_roi)[0]] = \
                     rh_fmri[img, np.where(challenge_roi)[0]]
             accuracy = np.mean(fsaverage_response[np.where(fsaverage_roi)[0]])
-            if accuracy > 0.001:
-                excelData.append([ImgClasses[img], roi, accuracy])
+            row_data.append(accuracy)
 
-    # print(excelData)
-    df = pd.DataFrame(excelData, columns=['Name', 'ROI', 'Accuracy'])
-    #df.to_excel('class_data.xlsx', index=False)
+        excelData.append(row_data)
 
-    # print(df['ROI'].values, df['Accuracy'])
-    # plt.hist(excelData['Accuracy'], color='lightgreen', ec='black', bins=15)
-    # plt.show()
-    # feature encoding
+    # Create DataFrame
+    columns = ['Name'] + listroi
+    df = pd.DataFrame(excelData, columns=columns)
+    print(df.values)
+    print("_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ")
 
-    # Encode categorical variables like 'Name' and 'ROI' using one-hot encoding
-    df_encoded = pd.get_dummies(df, columns=['Name', 'ROI'], drop_first=True)
+
+    # Fill NaN values (where there is no accuracy score) with zeros
+    df = df.fillna(0)
+    X = df.iloc[:, 1:]  # Assuming your variables start from the second column
+    y = df.iloc[:, 0]  # Assuming the first column contains the class labels
 
     # Split the data into features (X) and target variable (y)
-    X = df_encoded.drop('Accuracy', axis=1)
-    y = df_encoded['Accuracy']
+    #X = df['Name']
+    print(X)
+    print("_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ")
+    #y = df.drop('Name', axis=1)
+    print(y)
+
+
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Create a Decision Tree model
+    model = DecisionTreeClassifier(random_state=42)
+
+    # Train the model
+    model.fit(X_train, y_train)
+
+    # Make predictions on the test set
+    y_pred = model.predict(X_test)
+
+    # Display additional evaluation metrics
+    print('\nClassification Report:')
+    print(classification_report(y_test, y_pred))
+    exit()
 
     # Create and fit the linear regression model
     model = LinearRegression()
@@ -102,10 +128,6 @@ def classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri
     accuracy_score = model.score(X_test, y_test)
     print("accuracy score", accuracy_score)
 
-    normAcc = normalize_fmri_data2(df['Accuracy'])
-    print(normAcc)
-    df['Accuracy'] = normAcc
-    print(df['Accuracy'])
     print(df)
     return df
 
@@ -114,4 +136,4 @@ def normalize_fmri_data2(data):
     mean_value = np.mean(data)
     std_dev = np.std(data)
     normalized_data = (data - mean_value) / std_dev
-    return normalized_data
+    return np.array([normalized_data] * len(data)).T  # Ensure it's a 2D array with the same number of rows
