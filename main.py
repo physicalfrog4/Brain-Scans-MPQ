@@ -2,7 +2,7 @@ import os
 import numpy as np
 import torch
 import data
-from words import wordClassifier
+from words import wordClassifier, addROItoDF
 from data import normalize_fmri_data
 from LEM import extract_data_features, linearMap, predAccuracy
 from classification import classFMRIfromIMGandROI
@@ -54,20 +54,23 @@ def main():
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
+
+
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
 
+    print("________ Image Classification ________")
+    length = len(idxs_train)
+    ImgClasses = wordClassifier(train_img_dir, idxs_train)
+    df = addROItoDF(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses, len(ImgClasses))
+    print("________ End ________")
     lh_fmri_train = lh_fmri[idxs_train]
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_train = rh_fmri[idxs_train]
     rh_fmri_val = rh_fmri[idxs_val]
     del lh_fmri, rh_fmri
-    print("________ Image Classification ________")
-    length = len(idxs_train)
-    ImgClasses = wordClassifier(train_img_dir)
-    image_class_data = classFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri_train, rh_fmri_train,
-                                              ImgClasses, length)
+
 
     print("________ MOBILE NET ________")
     # Google Net Model
