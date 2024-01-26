@@ -27,7 +27,8 @@ def wordClassifier(train_img_list):
     # pretrained
 
     modelYOLO = YOLO('yolov8n-cls.pt')
-    image_results = modelYOLO.predict(train_img_list)
+    image_results = modelYOLO.predict(train_img_list, stream=True)
+    modelYOLO.to('cuda')
     results = []
 
     # Perform predictions on the list of images
@@ -145,8 +146,10 @@ def addROItoDF(args, test_img_dir, test_img_list, lh_fmri, rh_fmri, ImgClasses, 
 
     # Linear Regression
     linear_model = LinearRegression()
+    linear_model.to('cuda')
     linear_model.fit(X_train, y_train)
     linear_predictions = linear_model.predict(X_test)
+
     linear_mse = mean_squared_error(y_test, linear_predictions)
     print(f'Linear Regression Mean Squared Error: {linear_mse}')
     accuracy_score = linear_model.score(X_test, y_test)
@@ -154,6 +157,7 @@ def addROItoDF(args, test_img_dir, test_img_list, lh_fmri, rh_fmri, ImgClasses, 
 
     # Random Forest Regression (as previously provided)
     random_forest_model = RandomForestRegressor()
+    random_forest_model.to('cuda')
     random_forest_model.fit(X_train, y_train)
     random_forest_predictions = random_forest_model.predict(X_test)
     random_forest_mse = mean_squared_error(y_test, random_forest_predictions)
@@ -388,7 +392,9 @@ def makeClassifications(df, img_list, img_dir):
     train_img_list = makeList(img_dir, img_list, num_list)
     # print("train images\n", train_img_list)
     modelYOLO = YOLO('yolov8n-cls.pt')
-    image_results = modelYOLO.predict(train_img_list)
+    modelYOLO.to('cuda')
+
+    image_results = modelYOLO.predict(train_img_list, stream=True)
     print(len(image_results))
     # print("num list\n", num_list)
     # print(train_img_list)
