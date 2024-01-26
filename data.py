@@ -1,5 +1,7 @@
 import os
 import random
+
+import pandas as pd
 import torchvision.transforms as transforms
 import numpy as np
 from pathlib import Path
@@ -34,7 +36,6 @@ def splitdata(train_img_list, test_img_list, train_img_dir):
     print('Training stimulus images: ' + format(len(idxs_train)))
     print('\nValidation stimulus images: ' + format(len(idxs_val)))
     print('\nTest stimulus images: ' + format(len(idxs_test)))
-
     return idxs_train, idxs_val, idxs_test
 
 
@@ -110,3 +111,26 @@ def make_negative_zero(matrix):
     # Replace negative values with zero
     matrix_array[matrix_array < 0] = 0
     return matrix_array
+
+def makeList(train_img_dir, train_img_list, idxs_val):
+
+    val_img_list = []
+    for i in idxs_val:
+        #print(i)
+        img_dir = os.path.join(train_img_dir, train_img_list[i])
+        train_img = Image.open(img_dir).convert('RGB')
+        # print(train_img)
+        val_img_list.append(train_img)
+    print("Make List\n", val_img_list)
+    return val_img_list
+
+def createDataFrame(idxs, fmri):
+    df1 = pd.DataFrame(idxs, columns=['Num'])
+    df2 = pd.DataFrame(fmri)
+    df = pd.concat([df1, df2], axis=1)
+    df_final = pd.DataFrame(df)
+    print(df_final)
+    return df_final
+
+
+

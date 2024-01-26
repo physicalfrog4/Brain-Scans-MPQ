@@ -1,8 +1,9 @@
 import os
 import numpy as np
+import pandas as pd
 import torch
 import data
-from words import wordClassifier, addROItoDF
+from words import wordClassifier, addROItoDF, makeClassifications, makeMorePred
 from data import normalize_fmri_data
 from LEM import extract_data_features, linearMap, predAccuracy
 from classification import classFMRIfromIMGandROI
@@ -61,7 +62,39 @@ def main():
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
 
     print("________ Image Classification ________")
-    length = len(idxs_train)
+
+    idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
+    # change this later to train img dir
+    print("________ Create Dataframe ________")
+    lh_fmri_train = lh_fmri[idxs_train]
+    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
+    lh_fmri_val = lh_fmri[idxs_val]
+    df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
+    rh_fmri_train = rh_fmri[idxs_train]
+    df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
+    rh_fmri_val = rh_fmri[idxs_val]
+    df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
+
+    print("________ Make Classifications ________")
+    lh_classifications_val = makeClassifications(df_lh_val, train_img_list, train_img_dir)
+    rh_classifications_val = lh_classifications_val
+    lh_classifications = makeClassifications(df_lh_train, train_img_list, train_img_dir)
+    rh_classifications = lh_classifications
+
+    print("________ Combine Dataframes ________")
+    lh_train = pd.concat([df_lh_train, lh_classifications], axis=1)
+    lh_train = lh_train[lh_train['Class'].notna()]
+
+    rh_train = pd.concat([df_rh_train, rh_classifications], axis=1)
+    rh_train = lh_train[lh_train['Class'].notna()]
+
+    lh_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
+    lh_val = lh_val[lh_val['Class'].notna()]
+
+    rh_val = pd.concat([df_rh_val, rh_classifications_val], axis=1)
+    rh_val = rh_val[rh_val['Class'].notna()]
+
+    makeMorePred(lh_train, rh_train, lh_val, rh_val)
     ImgClasses = wordClassifier(train_img_dir, idxs_train)
     df = addROItoDF(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses, len(ImgClasses))
     print("________ End ________")

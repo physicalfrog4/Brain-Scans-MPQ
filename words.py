@@ -13,8 +13,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 from ultralytics import YOLO
 
+from data import makeList
 
-def wordClassifier(train_img_list, idxs_train):
+
+def wordClassifier(train_img_list):
     w2v = api.load("word2vec-google-news-300")
     # Uncomment this if you want the word classifier
     # not pretrained
@@ -31,7 +33,7 @@ def wordClassifier(train_img_list, idxs_train):
     # Perform predictions on the list of images
 
     for r in image_results:
-        print(image_results.index(r))
+        print("r ", image_results.index(r))
 
         temp_list = r.probs.top5
         score_list = r.probs.top5conf
@@ -43,23 +45,21 @@ def wordClassifier(train_img_list, idxs_train):
             num = (image_results.index(r))
             score = score_list[i].item()
             # more specific
-            if score >= 0.5:
+            if score >= 0.95:
                 name = imageList[temp_list[i]]
                 # less Specific
                 tempName = imageList[temp_list[i]]
                 tempName = tempName.replace("_", " ")
                 # name and the one hot encoding val
                 temp = similarWords3(w2v, tempName)
-                print("temp", temp)
+                # print("temp", temp)
                 results.append(temp)
 
-
     del modelYOLO
-
-    print(results)
+    # print(results)
     df = pd.DataFrame(results, columns=['Name', 'Class'])
-    print(df)
-    #df.to_excel("output.xlsx")
+    print("df\n", df)
+    df.to_excel("output.xlsx")
 
     return df
 
@@ -128,11 +128,11 @@ def addROItoDF(args, test_img_dir, test_img_list, lh_fmri, rh_fmri, ImgClasses, 
     df1 = pd.DataFrame(data, columns=columns)
     df = pd.concat([ImgClasses, df1], axis=1)
     print(df)
-    #df.to_excel("output2.xlsx")
+    df.to_excel("output2.xlsx")
 
     # Fill NaN values (where there is no accuracy score) with zeros
     df = df.fillna(0)
-    #df.to_excel('class_data.xlsx', index=False)
+    df.to_excel('class_data.xlsx', index=False)
 
     X = df['Class'].values.reshape(-1, 1)
     y = df.drop(['Class', 'Name'], axis=1)
@@ -162,11 +162,13 @@ def addROItoDF(args, test_img_dir, test_img_list, lh_fmri, rh_fmri, ImgClasses, 
     print("accuracy score", accuracy_score)
 
     return df
+
+
 def makePred(df, val_list):
     X = df['Class'].values.reshape(-1, 1)
     y = df.drop(['Class', 'Name'], axis=1)
 
-    #X2 =
+    # X2 =
 
     print('X', X)
     print('Y', y)
@@ -377,3 +379,71 @@ def similarWords3(model, word):
         return ["None", -1]
     temp = classifytoClasses(model, new_word)
     return temp
+
+
+def makeClassifications(df, img_list, img_dir):
+    print("make classifications")
+    w2v = api.load("word2vec-google-news-300")
+    num_list = df['Num']
+    train_img_list = makeList(img_dir, img_list, num_list)
+    # print("train images\n", train_img_list)
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    image_results = modelYOLO.predict(train_img_list)
+    print(len(image_results))
+    # print("num list\n", num_list)
+    # print(train_img_list)
+
+    results = []
+
+    # Perform predictions on the list of images
+
+    for r in image_results:
+        print(image_results.index(r))
+
+        temp_list = r.probs.top5
+        score_list = r.probs.top5conf
+
+        # print("score list", score_list)
+        imageList = r.names
+        # print(imageList[temp_list[0]])
+        for i in range(5):
+            num = (image_results.index(r))
+            score = score_list[i].item()
+            # more specific
+            if score >= 0.25:
+                name = imageList[temp_list[i]]
+                # less Specific
+                tempName = imageList[temp_list[i]]
+                tempName = tempName.replace("_", " ")
+                # name and the one hot encoding val
+                temp = similarWords3(w2v, tempName)
+                print("temp", temp)
+                results.append(temp)
+
+    del modelYOLO
+    print(results)
+    df = pd.DataFrame(results, columns=['Name', 'Class'])
+    print(df)
+    return df
+
+
+def makeMorePred(lh_train, rh_train, lh_val, rh_val):
+    # Random Forest Regression (as previously provided)
+    random_forest_model = RandomForestRegressor()
+    X = lh_train['Class'].values.reshape(-1, 1)
+    y = lh_train.drop(['Name', 'Class', 'Num'], axis=1)
+    print('X', X)
+    print('Y', y)
+
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Random Forest Regression (as previously provided)
+    random_forest_model = RandomForestRegressor()
+    random_forest_model.fit(X_train, y_train)
+    random_forest_predictions = random_forest_model.predict(X_test)
+
+    random_forest_mse = mean_squared_error(y_test, random_forest_predictions)
+    print(f'Random Forest Mean Squared Error: {random_forest_mse}')
+    accuracy_score = random_forest_model.score(X_test, y_test)
+    print("accuracy score", accuracy_score)
