@@ -392,10 +392,8 @@ def makeClassifications(df, img_list, img_dir):
     train_img_list = makeList(img_dir, img_list, num_list)
     # print("train images\n", train_img_list)
     modelYOLO = YOLO('yolov8n-cls.pt')
-    modelYOLO.to('cuda')
-
     image_results = modelYOLO.predict(train_img_list, stream=True)
-    print(len(image_results))
+    #print(len(image_results))
     # print("num list\n", num_list)
     # print(train_img_list)
 
@@ -404,7 +402,8 @@ def makeClassifications(df, img_list, img_dir):
     # Perform predictions on the list of images
 
     for r in image_results:
-        print(image_results.index(r))
+       #print(r)
+        #print(image_results.index(r))
 
         temp_list = r.probs.top5
         score_list = r.probs.top5conf
@@ -413,7 +412,8 @@ def makeClassifications(df, img_list, img_dir):
         imageList = r.names
         # print(imageList[temp_list[0]])
         for i in range(5):
-            num = (image_results.index(r))
+
+            #num = (image_results.index(r))
             score = score_list[i].item()
             # more specific
             if score >= 0.25:
@@ -433,10 +433,11 @@ def makeClassifications(df, img_list, img_dir):
     return df
 
 
-def makeMorePred(lh_train, rh_train, lh_val, rh_val):
+#def makeMorePred(lh_train, rh_train, lh_val, rh_val):
+def makeMorePred(lh_train):
     # Random Forest Regression (as previously provided)
     random_forest_model = RandomForestRegressor()
-    X = lh_train['Class'].values.reshape(-1, 1)
+    X = lh_train['Class']
     y = lh_train.drop(['Name', 'Class', 'Num'], axis=1)
     print('X', X)
     print('Y', y)
