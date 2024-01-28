@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 import data
-from words import wordClassifier, addROItoDF, makeClassifications, makeMorePred
+from words import makeClassifications, makeMorePred
 from data import normalize_fmri_data
 from LEM import extract_data_features, linearMap, predAccuracy
 from classification import classFMRIfromIMGandROI
@@ -87,17 +87,18 @@ def main():
 
     rh_train = pd.concat([df_rh_train, rh_classifications], axis=1)
     rh_train = lh_train[lh_train['Class'].notna()]
+    lh_classifications_val = lh_classifications_val.drop(["Name"], axis=1)
+    lh_classifications = lh_classifications.drop(["Name"], axis=1)
 
     lh_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
     lh_val = lh_val[lh_val['Class'].notna()]
+    lh_train = lh_train[lh_train['Class'].notna()]
 
     rh_val = pd.concat([df_rh_val, rh_classifications_val], axis=1)
     rh_val = rh_val[rh_val['Class'].notna()]
-
-    makeMorePred(lh_train, rh_train, lh_val, rh_val)
-    ImgClasses = wordClassifier(train_img_dir, idxs_train)
-    df = addROItoDF(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, ImgClasses, len(ImgClasses))
+    makeMorePred(lh_classifications, lh_classifications_val, lh_train, lh_val)
     print("________ End ________")
+    exit()
     lh_fmri_train = lh_fmri[idxs_train]
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_train = rh_fmri[idxs_train]
