@@ -12,7 +12,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, a
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 from ultralytics import YOLO
-
 from data import makeList
 
 
@@ -95,50 +94,40 @@ def similarWords3(model, word):
     return temp
 
 
-def makeClassifications(df, img_list, img_dir):
-    print("make classifications")
+def makeClassifications(idxs, img_list, img_dir, batch_size=100):
+    print("make classifications right")
     w2v = api.load("word2vec-google-news-300")
-    w2v.to('cuda')
-    num_list = df['Num']
-    train_img_list = makeList(img_dir, img_list, num_list)
-    # print("train images\n", train_img_list)
-    modelYOLO = YOLO('yolov8n-cls.pt')
 
-    image_results = modelYOLO.predict(train_img_list, stream=True)
-    modelYOLO.to('cuda')
-    # print(len(image_results))
-    # print("num list\n", num_list)
-    # print(train_img_list)
+    train_img_list = makeList(img_dir, img_list, idxs)
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    #modelYOLO.to('cuda')
 
     results = []
 
-    # Perform predictions on the list of images
+    for start_idx in range(0, len(train_img_list), batch_size):
+        end_idx = start_idx + batch_size
+        batch_imgs = train_img_list[start_idx:end_idx]
 
-    for r in image_results:
+        # Perform predictions on the batch of images
+        image_results = modelYOLO.predict(batch_imgs, stream=True)
 
-        temp_list = r.probs.top5
-        score_list = r.probs.top5conf
+        for r in image_results:
+            temp_list = r.probs.top5
+            score_list = r.probs.top5conf
+            imageList = r.names
 
-        # print("score list", score_list)
-        imageList = r.names
-        # print(imageList[temp_list[0]])
-        for i in range(5):
+            for i in range(5):
+                score = score_list[i].item()
 
-            # num = (image_results.index(r))
-            score = score_list[i].item()
-            # more specific
-            if score >= 0.25:
-                name = imageList[temp_list[i]]
-                # less Specific
-                tempName = imageList[temp_list[i]]
-                tempName = tempName.replace("_", " ")
-                # name and the one hot encoding val
-                temp = similarWords3(w2v, tempName)
-                print("temp", temp)
-                results.append(temp)
+                if score >= 0.25:
+                    name = imageList[temp_list[i]]
+                    tempName = imageList[temp_list[i]]
+                    tempName = tempName.replace("_", " ")
+                    temp = similarWords3(w2v, tempName)
+                    results.append(temp)
 
     del modelYOLO
-    print(results)
+    #print(results)
     df = pd.DataFrame(results, columns=['Name', 'Class'])
     print(df)
     return df
@@ -169,3 +158,4 @@ def makeMorePred(X_train, X_test, y_train, y_test):
     print(f'Random Forest Mean Squared Error: {random_forest_mse}')
     accuracy_score = random_forest_model.score(X_test, y_test)
     print("accuracy score", accuracy_score)
+

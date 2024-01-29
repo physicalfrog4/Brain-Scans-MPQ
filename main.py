@@ -2,11 +2,14 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+from ultralytics import YOLO
+
 import data
 from words import makeClassifications, makeMorePred
 from data import normalize_fmri_data
 from LEM import extract_data_features, linearMap, predAccuracy
 from classification import classFMRIfromIMGandROI
+
 
 def main():
     if platform == 'jupyter_notebook':
@@ -55,8 +58,6 @@ def main():
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
-
-
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
@@ -74,12 +75,17 @@ def main():
     df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
     rh_fmri_val = rh_fmri[idxs_val]
     df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
+    torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
-    lh_classifications_val = makeClassifications(df_lh_val, train_img_list, train_img_dir)
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    modelYOLO.to("cuda:1")
+    lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
     rh_classifications_val = lh_classifications_val
-    lh_classifications = makeClassifications(df_lh_train, train_img_list, train_img_dir)
+    torch.cuda.empty_cache()
+    lh_classifications = makeClassifications(idxs_train, train_img_list, train_img_dir)
     rh_classifications = lh_classifications
+    torch.cuda.empty_cache()
 
     print("________ Combine Dataframes ________")
     lh_train = pd.concat([df_lh_train, lh_classifications], axis=1)
@@ -96,7 +102,9 @@ def main():
 
     rh_val = pd.concat([df_rh_val, rh_classifications_val], axis=1)
     rh_val = rh_val[rh_val['Class'].notna()]
+    torch.cuda.empty_cache()
     makeMorePred(lh_classifications, lh_classifications_val, lh_train, lh_val)
+    makeMorePred(rh_classifications, rh_classifications_val, rh_train, rh_val)
     print("________ End ________")
     exit()
     lh_fmri_train = lh_fmri[idxs_train]
@@ -104,7 +112,6 @@ def main():
     rh_fmri_train = rh_fmri[idxs_train]
     rh_fmri_val = rh_fmri[idxs_val]
     del lh_fmri, rh_fmri
-
 
     print("________ MOBILE NET ________")
     # Google Net Model
