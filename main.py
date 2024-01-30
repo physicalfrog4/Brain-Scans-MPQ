@@ -92,17 +92,18 @@ def main():
     lh_train = lh_train[lh_train['Class'].notna()]
 
     rh_train = pd.concat([df_rh_train, rh_classifications], axis=1)
-    rh_train = lh_train[lh_train['Class'].notna()]
+    rh_train = rh_train[rh_train['Class'].notna()]
+
     lh_classifications_val = lh_classifications_val.drop(["Name"], axis=1)
     lh_classifications = lh_classifications.drop(["Name"], axis=1)
 
     lh_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
     lh_val = lh_val[lh_val['Class'].notna()]
-    lh_train = lh_train[lh_train['Class'].notna()]
 
     rh_val = pd.concat([df_rh_val, rh_classifications_val], axis=1)
     rh_val = rh_val[rh_val['Class'].notna()]
     torch.cuda.empty_cache()
+    
     makeMorePred(lh_classifications, lh_classifications_val, lh_train, lh_val)
     makeMorePred(rh_classifications, rh_classifications_val, rh_train, rh_val)
     print("________ End ________")
