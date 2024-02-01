@@ -2,6 +2,8 @@ import os
 
 import gensim.downloader as api
 import pandas as pd
+from PIL import Image
+from matplotlib import pyplot as plt
 from nltk.corpus import words
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error

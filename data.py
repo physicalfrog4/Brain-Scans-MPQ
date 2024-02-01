@@ -118,10 +118,10 @@ def makeList(train_img_dir, train_img_list, idxs_val):
     for i in idxs_val:
         #print(i)
         img_dir = os.path.join(train_img_dir, train_img_list[i])
-        train_img = Image.open(img_dir).convert('RGB')
+        #train_img = Image.open(img_dir).convert('RGB')
         # print(train_img)
-        val_img_list.append(train_img)
-    print("Make List\n", val_img_list)
+        val_img_list.append(img_dir)
+    #print("Make List\n", val_img_list)
     return val_img_list
 
 def createDataFrame(idxs, fmri):

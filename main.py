@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+from ultralytics import YOLO
+
 import data
 from words import makeClassifications, makeMorePred
 from data import normalize_fmri_data
@@ -65,8 +67,9 @@ def main():
 
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
     # change this later to train img dir
+    print("________ Create Dataframe ________")
     lh_fmri_train = lh_fmri[idxs_train]
-    rh_fmri_train = rh_fmri[idxs_train]
+    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_val = rh_fmri[idxs_val]
 
@@ -81,13 +84,18 @@ def main():
 
     df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
     df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
+    rh_fmri_train = rh_fmri[idxs_train]
     df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
+    rh_fmri_val = rh_fmri[idxs_val]
     df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
     torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    modelYOLO.to("cuda:1")
     lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
     rh_classifications_val = lh_classifications_val
+    torch.cuda.empty_cache()
     lh_classifications = makeClassifications(idxs_train, train_img_list, train_img_dir)
     rh_classifications = lh_classifications
     torch.cuda.empty_cache()
