@@ -1,18 +1,11 @@
 import os
 
 import gensim.downloader as api
-import numpy as np
 import pandas as pd
-from PIL import Image
-from matplotlib import pyplot as plt
 from nltk.corpus import words
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, accuracy_score
-from sklearn.model_selection import train_test_split
-from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
 from ultralytics import YOLO
-
 from data import makeList
 
 
@@ -67,10 +60,12 @@ def similarWords3(model, word):
     try:
         if word.__contains__(' '):
             maybe = word.split()
-            print(maybe)
-            input_words0 = model.most_similar(maybe[0], topn=5)
-            input_words1 = model.most_similar(maybe[1], topn=5)
-            input_words = input_words0 + input_words1
+            input_words = []
+            for i in range(len(maybe)):
+                # print(maybe)
+                input_words0 = model.most_similar(maybe[0], topn=5)
+                input_words = input_words + input_words0
+
         else:
             input_words = model.most_similar(word, topn=5)
         # print("input words", input_words)
@@ -89,83 +84,68 @@ def similarWords3(model, word):
         new_word = best_word
     else:
         new_word = "No suitable word found"
-        print(new_word)
+        # print(new_word)
         return ["None", -1]
     temp = classifytoClasses(model, new_word)
     return temp
 
 
-def makeClassifications(df, img_list, img_dir):
-    print("make classifications")
-    w2v = api.load("word2vec-google-news-300")
-    w2v.to('cuda')
-    num_list = df['Num']
-    train_img_list = makeList(img_dir, img_list, num_list)
-    # print("train images\n", train_img_list)
-    modelYOLO = YOLO('yolov8n-cls.pt')
 
-    image_results = modelYOLO.predict(train_img_list, stream=True)
-    modelYOLO.to('cuda')
-    # print(len(image_results))
-    # print("num list\n", num_list)
-    # print(train_img_list)
-
-    results = []
-
-    # Perform predictions on the list of images
-
-    for r in image_results:
-
-        temp_list = r.probs.top5
-        score_list = r.probs.top5conf
-
-        # print("score list", score_list)
-        imageList = r.names
-        # print(imageList[temp_list[0]])
-        for i in range(5):
-
-            # num = (image_results.index(r))
-            score = score_list[i].item()
-            # more specific
-            if score >= 0.25:
-                name = imageList[temp_list[i]]
-                # less Specific
-                tempName = imageList[temp_list[i]]
-                tempName = tempName.replace("_", " ")
-                # name and the one hot encoding val
-                temp = similarWords3(w2v, tempName)
-                print("temp", temp)
-                results.append(temp)
-
-    del modelYOLO
-    print(results)
-    df = pd.DataFrame(results, columns=['Name', 'Class'])
-    print(df)
-    return df
-
-
-# def makeMorePred(lh_train, rh_train, lh_val, rh_val):
-def makeMorePred(X_train, X_test, y_train, y_test):
+def makeMorePred(train, val):
     # Random Forest Regression (as previously provided)
     # random_forest_model = RandomForestRegressor()
+    X_train = train['Class'].to_numpy().reshape(-1, 1)
+    y_train = train.drop(['Class'], axis=1).to_numpy()  # .reshape(-1, 1)
+    X_test = val['Class'].to_numpy().reshape(-1, 1)
+    y_test = val.drop(['Class'], axis=1).to_numpy()  # .reshape(-1, 1)
+    print(len(X_train))
+    print(len(y_train))
+    print(y_train)
 
-    print('X\n', X_train, X_test)
-    y_train = y_train.drop(['Class', 'Num', 'Name'], axis=1)
-    y_test = y_test.drop(['Class', 'Num'], axis=1)
-    # y = y.drop(['Class', 'Num'], axis=1)
-    # print('Y', y)
-    print('Y\n', y_train, y_test)
-
-    # Split the data into training and testing sets
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Random Forest Regression (as previously provided)
     random_forest_model = RandomForestRegressor()
     random_forest_model.fit(X_train, y_train)
-    print(X_train, y_train)
+
     random_forest_predictions = random_forest_model.predict(X_test)
-    print(y_test, random_forest_predictions)
+
+    print(y_test, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", random_forest_predictions)
     random_forest_mse = mean_squared_error(y_test, random_forest_predictions)
     print(f'Random Forest Mean Squared Error: {random_forest_mse}')
     accuracy_score = random_forest_model.score(X_test, y_test)
+    # print("accuracy score", accuracy_score)
     print("accuracy score", accuracy_score)
+    return random_forest_predictions
+
+
+def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
+    w2v = api.load("word2vec-google-news-300")
+    train_img_list = makeList(img_dir, img_list, idxs)
+    modelYOLO = YOLO('yolov8n-cls.pt')
+    modelYOLO.to('cuda:1')
+
+    results = []
+
+    for start_idx in range(0, len(train_img_list), batch_size):
+        end_idx = start_idx + batch_size
+        batch_imgs = train_img_list[start_idx:end_idx]
+
+        # Perform predictions on the batch of images
+        image_results = modelYOLO.predict(batch_imgs, stream=True)
+
+        for r in image_results:
+            temp_list = r.probs.top5
+            score_list = r.probs.top5conf
+            imageList = r.names
+
+            for i in range(5):
+                score = score_list[i].item()
+                if score >= 0.25:
+                    name = imageList[temp_list[i]]
+                    tempName = imageList[temp_list[i]]
+                    tempName = tempName.replace("_", " ")
+                    temp = similarWords3(w2v, tempName)
+                    results.append(temp)
+
+    del modelYOLO
+    df = pd.DataFrame(results, columns=['Name', 'Class'])
+    print(df)
+    return df

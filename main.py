@@ -65,38 +65,67 @@ def main():
 
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
     # change this later to train img dir
-    print("________ Create Dataframe ________")
     lh_fmri_train = lh_fmri[idxs_train]
-    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
-    lh_fmri_val = lh_fmri[idxs_val]
-    df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
     rh_fmri_train = rh_fmri[idxs_train]
-    df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
+    lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_val = rh_fmri[idxs_val]
+
+    print("________ Create Dataframe For ROI ________")
+
+    df_train = data.dfROI(args, idxs_train, lh_fmri, rh_fmri)
+    df_val = data.dfROI(args, idxs_val, lh_fmri, rh_fmri)
+    df_test = data.dfROI(args, idxs_test, lh_fmri, rh_fmri)
+    print('\nTRAIN\n', df_train, "\nVAL\n", df_val, "\nTEST\n", df_test)
+
+    print("________ Create Dataframe ________")
+
+    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
+    df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
+    df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
     df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
+    torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
-    lh_classifications_val = makeClassifications(df_lh_val, train_img_list, train_img_dir)
+    lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
     rh_classifications_val = lh_classifications_val
-    lh_classifications = makeClassifications(df_lh_train, train_img_list, train_img_dir)
+    lh_classifications = makeClassifications(idxs_train, train_img_list, train_img_dir)
     rh_classifications = lh_classifications
+    torch.cuda.empty_cache()
+    # print(lh_classifications)
 
     print("________ Combine Dataframes ________")
-    lh_train = pd.concat([df_lh_train, lh_classifications], axis=1)
-    lh_train = lh_train[lh_train['Class'].notna()]
+    lh_train = pd.concat([lh_classifications, df_lh_train], axis=1)
+    lh_train = lh_train.drop(["Name", "Num"], axis=1)
+    lh_train = lh_train.fillna(-1)
+    print(lh_train)
+    # lh_train = lh_train[lh_train['Class'].notna()]
 
-    rh_train = pd.concat([df_rh_train, rh_classifications], axis=1)
-    rh_train = lh_train[lh_train['Class'].notna()]
-    lh_classifications_val = lh_classifications_val.drop(["Name"], axis=1)
-    lh_classifications = lh_classifications.drop(["Name"], axis=1)
+    rh_train = pd.concat([rh_classifications, df_rh_train, ], axis=1)
+    rh_train = rh_train.drop(["Name", "Num"], axis=1)
+    rh_train = rh_train.fillna(-1)
+    # rh_train = rh_train[rh_train['Class'].notna()]
 
-    lh_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
-    lh_val = lh_val[lh_val['Class'].notna()]
-    lh_train = lh_train[lh_train['Class'].notna()]
+    rh_classifications_val = pd.concat([rh_classifications_val, df_rh_val], axis=1)
+    rh_classifications_val = rh_classifications_val.drop(["Name", "Num"], axis=1)
+    # rh_val = rh_classifications_val[rh_classifications_val['Class'].notna()]
+    rh_val = rh_classifications_val.fillna(-1)
 
-    rh_val = pd.concat([df_rh_val, rh_classifications_val], axis=1)
-    rh_val = rh_val[rh_val['Class'].notna()]
-    makeMorePred(lh_classifications, lh_classifications_val, lh_train, lh_val)
+    lh_classifications_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
+    lh_classifications_val = lh_classifications_val.drop(["Name", "Num"], axis=1)
+    lh_val = lh_classifications_val.fillna(-1)
+    # lh_val = lh_classifications_val[lh_classifications_val['Class'].notna()]
+
+    print(len(lh_train))
+    print(len(rh_train))
+    print(len(lh_val))
+    print(len(rh_val))
+
+    lh_fmri_val_pred = makeMorePred(lh_train, lh_val)
+    rh_fmri_val_pred = makeMorePred(rh_train, rh_val)
+
+    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+    print(lh_correlation, rh_correlation)
+
     print("________ End ________")
     exit()
     lh_fmri_train = lh_fmri[idxs_train]
