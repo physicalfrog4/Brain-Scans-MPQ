@@ -6,6 +6,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from nltk.corpus import words
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from ultralytics import YOLO
 from data import makeList
@@ -92,7 +93,6 @@ def similarWords3(model, word):
     return temp
 
 
-
 def makeMorePred(train, val):
     # Random Forest Regression (as previously provided)
     # random_forest_model = RandomForestRegressor()
@@ -118,7 +118,7 @@ def makeMorePred(train, val):
     return random_forest_predictions
 
 
-def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
+def makeClassifications2(idxs, img_list, img_dir, batch_size=1000):
     w2v = api.load("word2vec-google-news-300")
     train_img_list = makeList(img_dir, img_list, idxs)
     modelYOLO = YOLO('yolov8n-cls.pt')
@@ -150,4 +150,70 @@ def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
     del modelYOLO
     df = pd.DataFrame(results, columns=['Name', 'Class'])
     print(df)
+    return df
+
+
+def makePredictions(train, train_fmri, val, val_fmri):
+    # input train data
+
+    fmri = val_fmri.to_numpy()
+    random_forest_model = LinearRegression()
+    random_forest_model.fit(train, train_fmri)
+    random_forest_predictions = random_forest_model.predict(val)
+
+    print(fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", random_forest_predictions)
+    random_forest_mse = mean_squared_error(val_fmri, random_forest_predictions)
+    print(f'Random Forest Mean Squared Error: {random_forest_mse}')
+    accuracy_score = random_forest_model.score(val, val_fmri)
+    print("accuracy score", accuracy_score)
+
+    return random_forest_predictions
+
+
+def makeClassifications(idxs, img_list, img_dir, batch_size=500):
+    w2v = api.load("word2vec-google-news-300")
+    train_img_list = makeList(img_dir, img_list, idxs)
+    modelYOLO = YOLO('yolov8n-cls.pt')
+
+    results = []
+
+    for start_idx in range(0, len(train_img_list), batch_size):
+        end_idx = start_idx + batch_size
+        batch_imgs = train_img_list[start_idx:end_idx]
+
+        # Perform predictions on the batch of images
+        image_results = modelYOLO.predict(batch_imgs, stream=True)
+
+        for r in image_results:
+            # print(r.probs.top5)
+
+            temp_list = r.probs.top5
+            score_list = r.probs.top5conf
+            imageList = r.names
+            # other_list = temp_list.numpy()
+            temp = []
+            results.append(r.probs.top1)
+            for i in range(5):
+                score = score_list[i].item()
+                if score >= 0.25:
+                    name = imageList[temp_list[i]]
+                    # print(name, temp_list[i])
+                    # temp.append(name)
+                    # temp.append(temp_list[i])
+            if len(temp) < 5:
+                numZeros = (5 - len(temp))
+                # temp.extend([0 for i in range(numZeros)])
+
+                # print(temp_list[i])
+                # tempName = imageList[temp_list[i]]
+                # tempName = tempName.replace("_", " ")
+                # print(tempName)
+                # temp = similarWords3(w2v, tempName)
+                # results.append(temp)
+            # results.append(temp)
+    # print(results)
+    # exit()
+    del modelYOLO
+    df = pd.DataFrame(results)  # , columns=['Num','Name', 'Class'])
+
     return df
