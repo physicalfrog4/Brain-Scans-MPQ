@@ -98,7 +98,7 @@ def main():
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 50))
     # Model
     model_img = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    model_img.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
+    model_img.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
     # model_img.eval()  # set the model to evaluation mode, since you are not training it
 
     features_train, features_val, features_test = (

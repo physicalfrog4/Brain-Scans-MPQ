@@ -122,7 +122,7 @@ def makeClassifications2(idxs, img_list, img_dir, batch_size=1000):
     w2v = api.load("word2vec-google-news-300")
     train_img_list = makeList(img_dir, img_list, idxs)
     modelYOLO = YOLO('yolov8n-cls.pt')
-    modelYOLO.to('cuda:1')
+    modelYOLO.to('cuda')
 
     results = []
 

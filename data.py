@@ -79,7 +79,7 @@ class ImageDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
-            img = self.transform(img).to('cpu')
+            img = self.transform(img).to('cuda')
         return img
 
 
