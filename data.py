@@ -105,24 +105,17 @@ def normalize_fmri_data(data):
     # return normalized_data
 
 
-def make_negative_zero(matrix):
-    # Convert the matrix to a  NumPy array
-    matrix_array = np.array(matrix)
-    # Replace negative values with zero
-    matrix_array[matrix_array < 0] = 0
-    return matrix_array
-
 def makeList(train_img_dir, train_img_list, idxs_val):
-
     val_img_list = []
     for i in idxs_val:
-        #print(i)
+        # print(i)
         img_dir = os.path.join(train_img_dir, train_img_list[i])
-        #train_img = Image.open(img_dir).convert('RGB')
+        # train_img = Image.open(img_dir).convert('RGB')
         # print(train_img)
         val_img_list.append(img_dir)
-    #print("Make List\n", val_img_list)
+    # print("Make List\n", val_img_list)
     return val_img_list
+
 
 def createDataFrame(idxs, fmri):
     df1 = pd.DataFrame(idxs, columns=['Num'])
@@ -132,9 +125,10 @@ def createDataFrame(idxs, fmri):
     print(df_final)
     return df_final
 
+
 def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
     hemisphere = hemi
-    #hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
+    # hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
     roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
 
     # Load the image
@@ -162,7 +156,6 @@ def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
         roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
                                    'mapping_' + roi_class + '.npy')
 
-
         challenge_roi_class = np.load(challenge_roi_class_dir)
         fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
         roi_map = np.load(roi_map_dir, allow_pickle=True).item()
@@ -178,9 +171,9 @@ def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
             fsaverage_response[np.where(fsaverage_roi)[0]] = \
                 lh_fmri[img, np.where(challenge_roi)[0]]
             val = (lh_fmri[img, np.where(challenge_roi)[0]].tolist())
-            #print(val)
+            # print(val)
             data.append(val)
-            #print(len(val))
+            # print(len(val))
         elif hemisphere == 'right':
             fsaverage_response[np.where(fsaverage_roi)[0]] = \
                 rh_fmri[img, np.where(challenge_roi)[0]]
@@ -191,8 +184,6 @@ def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
     return df
 
 
-
-
 def makeList(train_img_dir, train_img_list, idxs_val):
     val_img_list = []
     for i in idxs_val:
@@ -201,5 +192,5 @@ def makeList(train_img_dir, train_img_list, idxs_val):
         train_img = Image.open(img_dir).convert('RGB')
         # print(train_img)
         val_img_list.append(img_dir)
-    #print("Make List\n", val_img_list)
+    # print("Make List\n", val_img_list)
     return val_img_list

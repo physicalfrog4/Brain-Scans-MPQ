@@ -2,13 +2,11 @@ import os
 import numpy as np
 import pandas as pd
 import torch
-from ultralytics import YOLO
-
 import data
-from words import makeClassifications, makeMorePred, makePredictions
+from words import makeClassifications, makePredictions
 from data import normalize_fmri_data
-from LEM import extract_data_features, linearMap, predAccuracy
-from classification import classFMRIfromIMGandROI
+from LEM import extract_data_features, predAccuracy
+
 
 
 def main():
@@ -92,15 +90,15 @@ def main():
     rh_classifications = lh_classifications
     torch.cuda.empty_cache()
 
-
     print("________ Extract Image Features ________")
 
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
-        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 50))
-    # Model
+        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 100))
+
+    # Model for Images
     model_img = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
     model_img.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
-    # model_img.eval()  # set the model to evaluation mode, since you are not training it
+
 
     features_train, features_val, features_test = (
         extract_data_features(model_img, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 50))
@@ -117,43 +115,15 @@ def main():
     lh_fmri_val_pred = makePredictions(lh_train_input, lh_fmri_train, lh_val_input, lh_fmri_val)
     rh_fmri_val_pred = makePredictions(rh_train_input, rh_fmri_train, rh_val_input, rh_fmri_val)
 
-
     lh_avg = np.average(lh_fmri_val_pred - lh_fmri_val)
     rh_avg = np.average(rh_fmri_val_pred - rh_fmri_val)
+
     print("LH AVG ", lh_avg)
     print("RH AVG ", rh_avg)
 
-    lh_correlation, rh_correlation = predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
-    print(lh_correlation, rh_correlation)
+    predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
     print("________ End ________")
-    exit()
-    lh_fmri_train = lh_fmri[idxs_train]
-    lh_fmri_val = lh_fmri[idxs_val]
-    rh_fmri_train = rh_fmri[idxs_train]
-    rh_fmri_val = rh_fmri[idxs_val]
-
-    del lh_fmri, rh_fmri
-
-    # Normalize the Data
-    lh_fmri_train = normalize_fmri_data(lh_fmri_train)
-    rh_fmri_train = normalize_fmri_data(rh_fmri_train)
-    lh_fmri_val = normalize_fmri_data(lh_fmri_val)
-    rh_fmri_val = normalize_fmri_data(rh_fmri_val)
-
-    print("________ MOBILE NET ________")
-    # Google Net Model
-    modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    modelGN.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
-    modelGN.eval()  # set the model to evaluation mode, since you are not training it
-
-    features_train, features_val, features_test = (
-        extract_data_features(modelGN, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size))
-    del modelGN
-    lh_fmri_val_pred, rh_fmri_val_pred, lh_fmri_test_pred, rh_fmri_test_pred = (
-        linearMap(features_train, lh_fmri_train, rh_fmri_train, features_val, features_test, lh_fmri_val, rh_fmri_val))
-
-    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
 
 class argObj:

@@ -92,11 +92,6 @@ def extract_features(feature_extractor, dataloader, pca):
     return np.vstack(features)
 
 
-def normalize_fmri_data(data):
-    min_value = np.min(data)
-    max_value = np.max(data)
-    normalized_data = (data - min_value) / (max_value - min_value)
-    return normalized_data
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
