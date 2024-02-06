@@ -88,3 +88,14 @@ def normalize_fmri_data(data):
     max_value = np.max(data)
     normalized_data = (data - min_value) / (max_value - min_value)
     return normalized_data
+
+def makeList(train_img_dir, train_img_list, idxs_val):
+    val_img_list = []
+    for i in idxs_val:
+        # print(i)
+        img_dir = os.path.join(train_img_dir, train_img_list[i])
+        train_img = Image.open(img_dir).convert('RGB')
+        # print(train_img)
+        val_img_list.append(img_dir)
+    #print("Make List\n", val_img_list)
+    return val_img_list
