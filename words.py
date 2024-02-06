@@ -121,8 +121,7 @@ def makeMorePred(train, val):
 def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
     w2v = api.load("word2vec-google-news-300")
     train_img_list = makeList(img_dir, img_list, idxs)
-    modelYOLO = YOLO('yolov8n-cls.pt')
-    modelYOLO.to('cuda:1')
+    modelYOLO = YOLO('yolov8n.pt')
 
     results = []
 
@@ -132,22 +131,33 @@ def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
 
         # Perform predictions on the batch of images
         image_results = modelYOLO.predict(batch_imgs, stream=True)
+        # data = []
 
         for r in image_results:
-            temp_list = r.probs.top5
-            score_list = r.probs.top5conf
-            imageList = r.names
+            temp = set()  # Use a set to store unique items
+            detection_count = r.boxes.shape[0]
 
-            for i in range(5):
-                score = score_list[i].item()
-                if score >= 0.25:
-                    name = imageList[temp_list[i]]
-                    tempName = imageList[temp_list[i]]
-                    tempName = tempName.replace("_", " ")
-                    temp = similarWords3(w2v, tempName)
-                    results.append(temp)
+            for i in range(min(detection_count, 5)):  # Limit to a maximum of 5 items
+                cls = int(r.boxes.cls[i].item())
+                name = r.names[cls]
+                confidence = float(r.boxes.conf[i].item())
+                bounding_box = r.boxes.xyxy[i].cpu().numpy()
+                x = int(bounding_box[0])
+                y = int(bounding_box[1])
+                width = int(bounding_box[2] - x)
+                height = int(bounding_box[3] - y)
+                temp.add(cls)  # Add class to the set
+
+            results.append(list(temp))
 
     del modelYOLO
-    df = pd.DataFrame(results, columns=['Name', 'Class'])
-    print(df)
-    return df
+    # df = pd.DataFrame(data)  # , columns=['Num','Name', 'Class'])
+    Data_type = object
+    # data = np.array(results, dtype=Data_type)
+
+    print(results)
+    data = pd.DataFrame(results)
+    data.fillna(-1, inplace=True)
+    # data = results.reshape(-1, 1)
+    print(data)
+    return data

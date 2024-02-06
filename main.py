@@ -131,7 +131,12 @@ def main():
     lh_fmri_val_pred = makeMorePred(lh_train, lh_val)
     rh_fmri_val_pred = makeMorePred(rh_train, rh_val)
 
-    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+    lh_avg = np.average(lh_fmri_val_pred - lh_fmri_val)
+    rh_avg = np.average(rh_fmri_val_pred - rh_fmri_val)
+    print("LH AVG ", lh_avg)
+    print("RH AVG ", rh_avg)
+
+    lh_correlation, rh_correlation = predAccuracy(args, lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
     print(lh_correlation, rh_correlation)
 
     print("________ End ________")
