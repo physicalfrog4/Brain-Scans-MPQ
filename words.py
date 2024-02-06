@@ -1,5 +1,6 @@
 import gensim.downloader as api
 import pandas as pd
+import torch
 from PIL import Image
 from matplotlib import pyplot as plt
 from nltk.corpus import words
@@ -255,21 +256,6 @@ def makeMorePred(train, val):
     return random_forest_predictions
 
 
-def makeClassifications(idxs, img_list, img_dir, batch_size=500):
-    w2v = api.load("word2vec-google-news-300")
-    train_img_list = makeList(img_dir, img_list, idxs)
-    modelYOLO = YOLO('yolov8n.pt')
-
-    results = []
-
-    for start_idx in range(0, len(train_img_list), batch_size):
-        end_idx = start_idx + batch_size
-        batch_imgs = train_img_list[start_idx:end_idx]
-
-        # Perform predictions on the batch of images
-        image_results = modelYOLO.predict(batch_imgs, stream=True)
-        # data = []
-
 def makePredictions(train, train_fmri, val, val_fmri):
         # input train data
 
@@ -289,8 +275,9 @@ def makePredictions(train, train_fmri, val, val_fmri):
         return random_forest_predictions
 
 
-def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
-    w2v = api.load("word2vec-google-news-300")
+def makeClassifications(idxs, img_list, img_dir, batch_size=500):
+    #w2v = api.load("word2vec-google-news-300")
+    torch.cuda.empty_cache()
     train_img_list = makeList(img_dir, img_list, idxs)
     modelYOLO = YOLO('yolov8n.pt')
     modelYOLO.to('cuda:1')
@@ -323,7 +310,6 @@ def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
 
     del modelYOLO
     # df = pd.DataFrame(data)  # , columns=['Num','Name', 'Class'])
-    Data_type = object
     # data = np.array(results, dtype=Data_type)
 
     print(results)

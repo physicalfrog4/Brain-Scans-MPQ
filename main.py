@@ -83,6 +83,7 @@ def main():
     rh_train_ROI = data.dfROI(args, 'right', idxs_train, lh_fmri, rh_fmri)
     rh_val_ROI = data.dfROI(args, 'right', idxs_val, lh_fmri, rh_fmri)
     rh_test_ROI = data.dfROI(args, 'right', idxs_test, lh_fmri, rh_fmri)
+    torch.cuda.empty_cache()
 
     print("________ Create Dataframe ________")
 
@@ -95,8 +96,7 @@ def main():
     torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
-    modelYOLO = YOLO('yolov8n-cls.pt')
-    modelYOLO.to("cuda:1")
+
     lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
     rh_classifications_val = lh_classifications_val
     torch.cuda.empty_cache()
@@ -188,7 +188,7 @@ class argObj:
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cuda:1'  # @param ['cpu', 'cuda'] {allow-input: true}
+    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
     device = torch.device(device)
 
     main()
