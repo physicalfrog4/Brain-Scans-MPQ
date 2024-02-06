@@ -5,7 +5,7 @@ import torch
 from ultralytics import YOLO
 
 import data
-from words import makeClassifications, makeMorePred
+from words import makeClassifications, makeMorePred, makePredictions
 from data import normalize_fmri_data
 from LEM import extract_data_features, linearMap, predAccuracy
 from classification import classFMRIfromIMGandROI
@@ -58,19 +58,12 @@ def main():
     print('\nTraining image file name: ' + train_img_file)
     print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
-    print("________ Mobile Net ________")
+    print("________ Split Data ________")
 
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
-    train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
-        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, batch_size))
 
-    print("________ Image Classification ________")
-
-    idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
-    # change this later to train img dir
-    print("________ Create Dataframe ________")
     lh_fmri_train = lh_fmri[idxs_train]
-    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
+    rh_fmri_train = rh_fmri[idxs_train]
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_val = rh_fmri[idxs_val]
 
@@ -83,57 +76,47 @@ def main():
     rh_train_ROI = data.dfROI(args, 'right', idxs_train, lh_fmri, rh_fmri)
     rh_val_ROI = data.dfROI(args, 'right', idxs_val, lh_fmri, rh_fmri)
     rh_test_ROI = data.dfROI(args, 'right', idxs_test, lh_fmri, rh_fmri)
-    torch.cuda.empty_cache()
 
-    print("________ Create Dataframe ________")
+    print("________ Create Dataframe for All Regions ________")
 
     df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
     df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
-    rh_fmri_train = rh_fmri[idxs_train]
     df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
-    rh_fmri_val = rh_fmri[idxs_val]
     df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
     torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
-
     lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
     rh_classifications_val = lh_classifications_val
-    torch.cuda.empty_cache()
     lh_classifications = makeClassifications(idxs_train, train_img_list, train_img_dir)
     rh_classifications = lh_classifications
     torch.cuda.empty_cache()
-    # print(lh_classifications)
 
-    print("________ Combine Dataframes ________")
-    lh_train = pd.concat([lh_classifications, df_lh_train], axis=1)
-    lh_train = lh_train.drop(["Name", "Num"], axis=1)
-    lh_train = lh_train.fillna(-1)
-    print(lh_train)
-    # lh_train = lh_train[lh_train['Class'].notna()]
 
-    rh_train = pd.concat([rh_classifications, df_rh_train, ], axis=1)
-    rh_train = rh_train.drop(["Name", "Num"], axis=1)
-    rh_train = rh_train.fillna(-1)
-    # rh_train = rh_train[rh_train['Class'].notna()]
+    print("________ Extract Image Features ________")
 
-    rh_classifications_val = pd.concat([rh_classifications_val, df_rh_val], axis=1)
-    rh_classifications_val = rh_classifications_val.drop(["Name", "Num"], axis=1)
-    # rh_val = rh_classifications_val[rh_classifications_val['Class'].notna()]
-    rh_val = rh_classifications_val.fillna(-1)
+    train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
+        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 50))
+    # Model
+    model_img = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
+    model_img.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
+    # model_img.eval()  # set the model to evaluation mode, since you are not training it
 
-    lh_classifications_val = pd.concat([lh_classifications_val, df_lh_val], axis=1)
-    lh_classifications_val = lh_classifications_val.drop(["Name", "Num"], axis=1)
-    lh_val = lh_classifications_val.fillna(-1)
-    # lh_val = lh_classifications_val[lh_classifications_val['Class'].notna()]
+    features_train, features_val, features_test = (
+        extract_data_features(model_img, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 50))
+    del model_img
 
-    print(len(lh_train))
-    print(len(rh_train))
-    print(len(lh_val))
-    print(len(rh_val))
+    print("________ Combine Data ________")
+    lh_train_input = np.concatenate([lh_classifications, features_train], axis=1)
+    rh_train_input = np.concatenate([rh_classifications, features_train], axis=1)
+    lh_val_input = np.concatenate([lh_classifications_val, features_val], axis=1)
+    rh_val_input = np.concatenate([rh_classifications_val, features_val], axis=1)
 
-    lh_fmri_val_pred = makeMorePred(lh_train, lh_val)
-    rh_fmri_val_pred = makeMorePred(rh_train, rh_val)
+    print("________ Make Predictions ________")
+
+    lh_fmri_val_pred = makePredictions(lh_train_input, lh_fmri_train, lh_val_input, lh_fmri_val)
+    rh_fmri_val_pred = makePredictions(rh_train_input, rh_fmri_train, rh_val_input, rh_fmri_val)
+
 
     lh_avg = np.average(lh_fmri_val_pred - lh_fmri_val)
     rh_avg = np.average(rh_fmri_val_pred - rh_fmri_val)
