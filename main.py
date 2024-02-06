@@ -76,10 +76,13 @@ def main():
 
     print("________ Create Dataframe For ROI ________")
 
-    df_train = data.dfROI(args, idxs_train, lh_fmri, rh_fmri)
-    df_val = data.dfROI(args, idxs_val, lh_fmri, rh_fmri)
-    df_test = data.dfROI(args, idxs_test, lh_fmri, rh_fmri)
-    print('\nTRAIN\n', df_train, "\nVAL\n", df_val, "\nTEST\n", df_test)
+    lh_train_ROI = data.dfROI(args, 'left', idxs_train, lh_fmri, rh_fmri)
+    lh_val_ROI = data.dfROI(args, 'left', idxs_val, lh_fmri, rh_fmri)
+    lh_test_ROI = data.dfROI(args, 'left', idxs_test, lh_fmri, rh_fmri)
+
+    rh_train_ROI = data.dfROI(args, 'right', idxs_train, lh_fmri, rh_fmri)
+    rh_val_ROI = data.dfROI(args, 'right', idxs_val, lh_fmri, rh_fmri)
+    rh_test_ROI = data.dfROI(args, 'right', idxs_test, lh_fmri, rh_fmri)
 
     print("________ Create Dataframe ________")
 

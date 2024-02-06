@@ -193,7 +193,6 @@ def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
 
 
 
-
 def makeList(train_img_dir, train_img_list, idxs_val):
     val_img_list = []
     for i in idxs_val:
