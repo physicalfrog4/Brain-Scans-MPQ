@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 from nltk.corpus import words
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
 from ultralytics import YOLO
 
 from data import makeList
@@ -143,6 +145,7 @@ def similarWords5(model, input_word):
     # print(f"Input Words: {input_word}")
     # print(f"New Word: {new_word}")
     return new_word
+from data import makeList
 
 
 def classifytoClasses(model, input_word):
@@ -164,6 +167,10 @@ def classifytoClasses(model, input_word):
         "Painting", "Dance", "Sculpture", "Sculpture", "Abstract", "Surrealism", "Impressionism", "Expressionism",
         "Cubism", "Realism", "Contemporary", "Minimalism", "Abstract", "Classical", "Experimental", "Folk", "Restaurant"
     ]
+    predefined_words2 = [
+        "Outdoor", "Food", "Indoor", "Appliance", "Sports", "Person", "Animal", "Vehicle", "Furniture", "Accessory",
+        "Electric", "Kitchen"
+    ]
 
     # Calculate word similarities
     similarities = {}
@@ -177,26 +184,36 @@ def classifytoClasses(model, input_word):
             threshold = similarity
 
         similarities[predefined_word] = similarity
-    return returnval
+    index = predefined_words.index(returnval)
+    # print([returnval, index])
+    if returnval == "None":
+        return ['None', -1]
+    return [returnval, index]
 
 
-def similarWords3(model, input_words):
-    similar_words = []
+def similarWords3(model, word):
     best_similarity_score = -1  # Initialize with a very low value
 
     # Get the list of English words from NLTK corpus
     english_words = set(words.words())
+    try:
+        if word.__contains__(' '):
+            maybe = word.split()
+            input_words = []
+            for i in range(len(maybe)):
+                # print(maybe)
+                input_words0 = model.most_similar(maybe[0], topn=5)
+                input_words = input_words + input_words0
 
-    # Get similar words to each input word
-    for word in input_words:
-        try:
-            similar_words.extend(model.most_similar(word, topn=5))
-        except KeyError as e:
-            pass
+        else:
+            input_words = model.most_similar(word, topn=5)
+        # print("input words", input_words)
+    except KeyError:
+        return ['None', -1]
 
     # Combine and filter similar words from all input words
-    for word, similarity_score in similar_words:
-        # Check if the word is an English word and has a higher similarity score than the current best score
+    for word, similarity_score in input_words:
+        #     Check if the word is an English word and has a higher similarity score than the current best score
         if word in english_words and similarity_score > best_similarity_score:
             best_similarity_score = similarity_score
             best_word = word
@@ -206,11 +223,52 @@ def similarWords3(model, input_words):
         new_word = best_word
     else:
         new_word = "No suitable word found"
-        return "None"
+        # print(new_word)
+        return ["None", -1]
+    temp = classifytoClasses(model, new_word)
+    return temp
 
-    # print(f"Input Words: {input_words}")
-    # print(f"New Word: {new_word}")
-    return new_word
+
+
+def makeMorePred(train, val):
+    # Random Forest Regression (as previously provided)
+    # random_forest_model = RandomForestRegressor()
+    X_train = train['Class'].to_numpy().reshape(-1, 1)
+    y_train = train.drop(['Class'], axis=1).to_numpy()  # .reshape(-1, 1)
+    X_test = val['Class'].to_numpy().reshape(-1, 1)
+    y_test = val.drop(['Class'], axis=1).to_numpy()  # .reshape(-1, 1)
+    print(len(X_train))
+    print(len(y_train))
+    print(y_train)
+
+    random_forest_model = RandomForestRegressor()
+    random_forest_model.fit(X_train, y_train)
+
+    random_forest_predictions = random_forest_model.predict(X_test)
+
+    print(y_test, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", random_forest_predictions)
+    random_forest_mse = mean_squared_error(y_test, random_forest_predictions)
+    print(f'Random Forest Mean Squared Error: {random_forest_mse}')
+    accuracy_score = random_forest_model.score(X_test, y_test)
+    # print("accuracy score", accuracy_score)
+    print("accuracy score", accuracy_score)
+    return random_forest_predictions
+
+
+def makeClassifications(idxs, img_list, img_dir, batch_size=500):
+    w2v = api.load("word2vec-google-news-300")
+    train_img_list = makeList(img_dir, img_list, idxs)
+    modelYOLO = YOLO('yolov8n.pt')
+
+    results = []
+
+    for start_idx in range(0, len(train_img_list), batch_size):
+        end_idx = start_idx + batch_size
+        batch_imgs = train_img_list[start_idx:end_idx]
+
+        # Perform predictions on the batch of images
+        image_results = modelYOLO.predict(batch_imgs, stream=True)
+        # data = []
 
 def makePredictions(train, train_fmri, val, val_fmri):
         # input train data
@@ -246,7 +304,6 @@ def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
         # Perform predictions on the batch of images
         image_results = modelYOLO.predict(batch_imgs, stream=True)
         # data = []
-
         for r in image_results:
             temp = set()  # Use a set to store unique items
             detection_count = r.boxes.shape[0]
@@ -275,4 +332,3 @@ def makeClassifications(idxs, img_list, img_dir, batch_size=1000):
     # data = results.reshape(-1, 1)
     print(data)
     return data
-

@@ -100,7 +100,7 @@ def normalize_fmri_data(data):
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
-    torch.device = 'cuda'
+    # torch.device = 'cuda:1'
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
 
