@@ -161,7 +161,7 @@ def main():
     print("________ MOBILE NET ________")
     # Google Net Model
     modelGN = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    modelGN.to('cuda')  # send the model to the chosen device ('cpu' or 'cuda')
+    modelGN.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
     modelGN.eval()  # set the model to evaluation mode, since you are not training it
 
     features_train, features_val, features_test = (
@@ -188,7 +188,7 @@ class argObj:
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
+    device = 'cuda:1'  # @param ['cpu', 'cuda'] {allow-input: true}
     device = torch.device(device)
 
     main()
