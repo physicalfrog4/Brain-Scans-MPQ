@@ -1,7 +1,7 @@
 import os
 import pandas as pd
+import numpy as np
 import torch
-from torchvision import transforms
 from torch.utils.data import Dataset
 from PIL import Image
 from sklearn.preprocessing import LabelEncoder
@@ -10,12 +10,12 @@ def getFileNames(parentDir: str, subj: int):
     imgsPath = f"subj0{subj}/training_split/training_images/"
     filesDir = os.path.join(parentDir,imgsPath)
     fileNames = os.listdir(filesDir)
-    imgPaths = [os.path.join(parentDir, imgsPath, img) for img in fileNames]
+    imgPaths = np.array([os.path.join(parentDir, imgsPath, img) for img in fileNames])
     return imgPaths
 
 
 def getImgLabels(metaDataDir: str, subj: int):
-    filePath = os.path.join(metaDataDir, F"subj0{subj}ImgData.pkl")
+    filePath = os.path.join(metaDataDir, f"subj0{subj}ImgData.pkl")
     pklData = pd.read_pickle(filePath)
     classes = sorted(pklData["classLabel"].unique())
     labelEncoder = LabelEncoder().fit(classes)
@@ -24,10 +24,13 @@ def getImgLabels(metaDataDir: str, subj: int):
 
 
 class COCOImgWithLabel(Dataset):
-    def __init__(self, parentDir: str, metaDataDir: str, subj: int, tsfms = None):
+    def __init__(self, parentDir: str, metaDataDir: str, subj: int, idxs: list = None, tsfms = None):
         self.tsfms = tsfms        
         self.imgPaths = getFileNames(parentDir, subj)
         self.labels, self.labelEncoder = getImgLabels(metaDataDir, subj)
+        if idxs is not None:
+            self.imgPaths = self.imgPaths[idxs]
+            self.labels = self.labels[idxs].reset_index(drop=True)
     def __len__(self):
         return len(self.imgPaths)
     def __getitem__(self, idx):
