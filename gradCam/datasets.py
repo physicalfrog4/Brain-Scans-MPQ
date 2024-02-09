@@ -17,9 +17,9 @@ def getFileNames(parentDir: str, subj: int):
 def getImgLabels(metaDataDir: str, subj: int):
     filePath = os.path.join(metaDataDir, f"subj0{subj}ImgData.pkl")
     pklData = pd.read_pickle(filePath)
-    classes = sorted(pklData["classLabel"].unique())
+    classes = sorted(pklData["superClassLabel"].unique())
     labelEncoder = LabelEncoder().fit(classes)
-    return pklData["classLabel"], labelEncoder
+    return pklData["superClassLabel"], labelEncoder
 
 
 
@@ -45,17 +45,19 @@ class BalancedCocoSuperClassDataset(Dataset):
         superClasses = ['accessory', 'animal', 'appliance', 'electronic', 'food',
        'furniture', 'indoor', 'kitchen', 'outdoor', 'person', 'sports',
        'vehicle']
-        self.tsfms = tsfms        
+        self.tsfms = tsfms  
+        self.parentDir = parentDir      
         self.imgPaths = np.load(os.path.join(metaDataDir, "newDatasetImagesPath.npy"))
         self.labels = np.load(os.path.join(metaDataDir, "newDatasetImagesLabel.npy"))
         self.labelEncoder = LabelEncoder().fit(superClasses)
         if idxs is not None:
             self.imgPaths = self.imgPaths[idxs]
-            self.labels = self.labels[idxs].reset_index(drop=True)
+            self.labels = self.labels[idxs]
     def __len__(self):
         return len(self.imgPaths)
     def __getitem__(self, idx):
-        img = Image.open(self.imgPaths[idx])
+        filePath = self.imgPaths[idx].split("C:/Users/josem/Documents/schoolWork/MQP/algonauts2023_transformers#2Leader/algonauts_2023_challenge_data/")[-1]
+        img = Image.open(os.path.join(self.parentDir, filePath))
         label = self.labels[idx]
         if self.tsfms:
             img = self.tsfms(img)

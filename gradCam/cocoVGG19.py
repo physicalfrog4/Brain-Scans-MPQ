@@ -8,7 +8,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from sklearn.model_selection import train_test_split
-from datasets import BalancedCocoSuperClassDataset
+from datasets import COCOImgWithLabel
 from models import cocoVGG
 
 class cocoVGG (torch.nn.Module):
@@ -52,18 +52,18 @@ tsfms = transforms.Compose([
     transforms.Resize((256,256)),
     transforms.CenterCrop((224,224)),
     transforms.ToTensor(),
-    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 
 numImages = len(os.listdir(os.path.join(parentDir, f"subj0{subj}/training_split/training_images/")))
 trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
 
-trainingDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, subj, idxs=trainIdxs,tsfms = tsfms)
-trainDataLoader = DataLoader(trainingDataset, batch_size = 128, shuffle = True)
+trainingDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs=trainIdxs,tsfms = tsfms)
+trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
 
-validDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, subj, idxs = validIdxs, tsfms = tsfms)
-validDataLoader = DataLoader(validDataset, batch_size = 128, shuffle = True)
+validDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs = validIdxs, tsfms = tsfms)
+validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
 
 
 
