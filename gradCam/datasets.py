@@ -39,4 +39,30 @@ class COCOImgWithLabel(Dataset):
         if self.tsfms:
             img = self.tsfms(img)
         return img, torch.tensor(self.labelEncoder.transform([label]), dtype=torch.long).squeeze()
+
+class BalancedCocoSuperClassDataset(Dataset):
+    def __init__(self, parentDir: str, metaDataDir: str, idxs: list = None, tsfms = None):
+        superClasses = ['accessory', 'animal', 'appliance', 'electronic', 'food',
+       'furniture', 'indoor', 'kitchen', 'outdoor', 'person', 'sports',
+       'vehicle']
+        self.tsfms = tsfms        
+        self.imgPaths = np.load(os.path.join(metaDataDir, "newDatasetImagesPath.npy"))
+        self.labels = np.load(os.path.join(metaDataDir, "newDatasetImagesLabel.npy"))
+        self.labelEncoder = LabelEncoder().fit(superClasses)
+        if idxs is not None:
+            self.imgPaths = self.imgPaths[idxs]
+            self.labels = self.labels[idxs].reset_index(drop=True)
+    def __len__(self):
+        return len(self.imgPaths)
+    def __getitem__(self, idx):
+        img = Image.open(self.imgPaths[idx])
+        label = self.labels[idx]
+        if self.tsfms:
+            img = self.tsfms(img)
+        return img, torch.tensor(self.labelEncoder.transform([label]), dtype=torch.long).squeeze()
+
+# testImg, testLabel = trainingDataset.__getitem__(0)
+# testImg = testImg.to(device)
+# model(testImg[None, :, :, :])
+# torch.argmax(model(testImg[None, :, :, :]))
     

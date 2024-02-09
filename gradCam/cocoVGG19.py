@@ -8,7 +8,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from sklearn.model_selection import train_test_split
-from datasets import COCOImgWithLabel
+from datasets import BalancedCocoSuperClassDataset
+from models import cocoVGG
 
 class cocoVGG (torch.nn.Module):
     def __init__(self, numClasses):
@@ -21,8 +22,13 @@ class cocoVGG (torch.nn.Module):
             torch.nn.ReLU(inplace=True),
             torch.nn.Linear(in_features = 4096, out_features = 1024),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Linear(in_features = 1024, out_features = numClasses)
+            torch.nn.Linear(in_features = 1024, out_features = numClasses),
+            torch.nn.Softmax(dim=1)
         )
+        for layer in self.classifier:
+            if isinstance(layer, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(layer.weight)
+                torch.nn.init.constant_(layer.bias, 0)
     def forward(self, img):
         x = self.features(img)
         x = self.avgpool(x)
@@ -35,6 +41,8 @@ class cocoVGG (torch.nn.Module):
         return ""
 
 
+
+
 device = "cuda:1" if torch.cuda.is_available() else "cpu"
 subj = 1
 parentDir = "./algonauts_2023_challenge_data/"
@@ -44,24 +52,24 @@ tsfms = transforms.Compose([
     transforms.Resize((256,256)),
     transforms.CenterCrop((224,224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 
 numImages = len(os.listdir(os.path.join(parentDir, f"subj0{subj}/training_split/training_images/")))
 trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
 
-trainingDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs=trainIdxs,tsfms = tsfms)
-trainDataLoader = DataLoader(trainingDataset, batch_size = 32, shuffle = True)
+trainingDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, subj, idxs=trainIdxs,tsfms = tsfms)
+trainDataLoader = DataLoader(trainingDataset, batch_size = 128, shuffle = True)
 
-validDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs = validIdxs, tsfms = tsfms)
-validDataLoader = DataLoader(validDataset, batch_size = 32, shuffle = True)
+validDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, subj, idxs = validIdxs, tsfms = tsfms)
+validDataLoader = DataLoader(validDataset, batch_size = 128, shuffle = True)
 
 
 
 numClasses = 79
 model = cocoVGG(numClasses).to(device)
-optim = torch.optim.Adam(model.parameters(), 0.00000025,  weight_decay=5e-4)#
+optim = torch.optim.Adam(model.parameters(), 0.000001)#,  weight_decay=5e-4
 criterion = torch.nn.CrossEntropyLoss()
 
 epochs = 10
@@ -89,7 +97,8 @@ for epoch in range(epochs):
             img = img.to(device)
             label = label.to(device)
             pred = model(img)
-            print(pred)
+            print(torch.argmax(pred, 1))
+            print(label)
             evalLoss = criterion(pred, label)
             numRight += (torch.argmax(pred, 1) == label).sum().item()
             avgEvalLoss += evalLoss.item()
