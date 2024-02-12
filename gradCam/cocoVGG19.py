@@ -8,12 +8,12 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from sklearn.model_selection import train_test_split
-from datasets import COCOImgWithLabel
-from models import cocoVGG
+from datasets import COCOImgWithLabel, BalancedCocoSuperClassDataset
+from models import CocoVGG
 
-class cocoVGG (torch.nn.Module):
+class CocoVGG (torch.nn.Module):
     def __init__(self, numClasses):
-        super(cocoVGG, self).__init__()
+        super(CocoVGG, self).__init__()
         self.vgg = vgg19(weights="DEFAULT")
         self.features = self.vgg.features
         self.avgpool = torch.nn.AdaptiveAvgPool2d((7,7))
@@ -59,20 +59,20 @@ tsfms = transforms.Compose([
 numImages = len(os.listdir(os.path.join(parentDir, f"subj0{subj}/training_split/training_images/")))
 trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
 
-trainingDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs=trainIdxs,tsfms = tsfms)
+trainingDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, idxs=trainIdxs,tsfms = tsfms)
 trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
 
-validDataset = COCOImgWithLabel(parentDir, metaDataDir, subj, idxs = validIdxs, tsfms = tsfms)
+validDataset = BalancedCocoSuperClassDataset(parentDir, metaDataDir, idxs = validIdxs, tsfms = tsfms)
 validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
 
 
 
 numClasses = 79
-model = cocoVGG(numClasses).to(device)
-optim = torch.optim.Adam(model.parameters(), 0.000001)#,  weight_decay=5e-4
+model = CocoVGG(numClasses).to(device)
+optim = torch.optim.Adam(model.parameters(), 0.000001, weight_decay=5e-4)#,  weight_decay=5e-4
 criterion = torch.nn.CrossEntropyLoss()
 
-epochs = 10
+epochs = 20
 for epoch in range(epochs):
     print(f"Epoch {epoch}")
     avgTrainingLoss = 0
@@ -97,8 +97,8 @@ for epoch in range(epochs):
             img = img.to(device)
             label = label.to(device)
             pred = model(img)
-            print(torch.argmax(pred, 1))
-            print(label)
+            # print(torch.argmax(pred, 1))
+            # print(label)
             evalLoss = criterion(pred, label)
             numRight += (torch.argmax(pred, 1) == label).sum().item()
             avgEvalLoss += evalLoss.item()

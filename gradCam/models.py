@@ -1,9 +1,9 @@
 import torch
 from torchvision.models import vgg19
 
-class cocoVGG (torch.nn.Module):
+class CocoVGG (torch.nn.Module):
     def __init__(self, numClasses):
-        super(cocoVGG, self).__init__()
+        super(CocoVGG, self).__init__()
         self.vgg = vgg19(weights="DEFAULT")
         self.features = self.vgg.features
         self.avgpool = torch.nn.AdaptiveAvgPool2d((7,7))
@@ -15,6 +15,10 @@ class cocoVGG (torch.nn.Module):
             torch.nn.Linear(in_features = 1024, out_features = numClasses),
             torch.nn.Softmax(dim=1)
         )
+        for layer in self.classifier:
+            if isinstance(layer, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(layer.weight)
+                torch.nn.init.constant_(layer.bias, 0)
     def forward(self, img):
         x = self.features(img)
         x = self.avgpool(x)
