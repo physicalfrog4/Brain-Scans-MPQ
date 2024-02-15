@@ -1,2 +1,7 @@
 
 .idea/workspace.xml
+gitgradCam/__pycache__/
+gradCam/__pycache__/datasets.cpython-311.pyc
+*.pyc
+gradCam/cocoVGGModel.pth
+gradCam/cocoVGGModelMeDumb76.pth

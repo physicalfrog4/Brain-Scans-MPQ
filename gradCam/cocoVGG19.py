@@ -3,9 +3,10 @@ import os
 from tqdm import tqdm
 
 import torch
+from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader
 from torchvision.models import vgg19
 from torchvision import transforms
-from torch.utils.data import DataLoader
 
 from sklearn.model_selection import train_test_split
 from datasets import COCOImgWithLabel, BalancedCocoSuperClassDataset
@@ -23,7 +24,7 @@ class CocoVGG (torch.nn.Module):
             torch.nn.Linear(in_features = 4096, out_features = 1024),
             torch.nn.ReLU(inplace=True),
             torch.nn.Linear(in_features = 1024, out_features = numClasses),
-            torch.nn.Softmax(dim=1)
+            # torch.nn.Softmax(dim=1)
         )
         for layer in self.classifier:
             if isinstance(layer, torch.nn.Linear):
@@ -52,7 +53,7 @@ tsfms = transforms.Compose([
     transforms.Resize((256,256)),
     transforms.CenterCrop((224,224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 
@@ -67,18 +68,21 @@ validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
 
 
 
-numClasses = 79
+numClasses = 12
 model = CocoVGG(numClasses).to(device)
-optim = torch.optim.Adam(model.parameters(), 0.000001, weight_decay=5e-4)#,  weight_decay=5e-4
+learningRate = 0.0001
+optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-4)#,  weight_decay=5e-4
+# scheduler = lr_scheduler.StepLR(optim, step_size=10, gamma=0.1)
 criterion = torch.nn.CrossEntropyLoss()
 
-epochs = 20
+
+epochs = 30
+first = True
 for epoch in range(epochs):
     print(f"Epoch {epoch}")
     avgTrainingLoss = 0
     avgEvalLoss = 0
     numRight = 0
-    model.train()
     for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
         img, label = data
         img = img.to(device)
@@ -102,7 +106,21 @@ for epoch in range(epochs):
             evalLoss = criterion(pred, label)
             numRight += (torch.argmax(pred, 1) == label).sum().item()
             avgEvalLoss += evalLoss.item()
-    print(f"Epoch {epoch}  TrainingCE: {avgTrainingLoss / len(trainDataLoader)}, ValidCE: {avgEvalLoss / len(validDataLoader)}, ValidAcc: {numRight / len(validDataset)}, got {numRight} right")
+    print(f"Epoch {epoch} using lr {learningRate} TrainingCE: {avgTrainingLoss / len(trainDataLoader)}, ValidCE: {avgEvalLoss / len(validDataLoader)}, ValidAcc: {numRight / len(validDataset)}, got {numRight} right")
+    # learningRate = 0.0000001
+    # scheduler.step()
+    if first:
+        first = False
+        learningRate = 0.0000001
+        for g in optim.param_groups:
+            g["lr"] = learningRate
+    if epoch == 5:
+        learningRate = 0.00000001
+        for g in optim.param_groups:
+            g["lr"] = learningRate
+            g["weight_decay"] = 1e-3
+    model.train()
+
 
 torch.save(model.state_dict(), './cocoVGGModel.pth')
 
