@@ -159,7 +159,7 @@ class roiVGG(torch.nn.Module):
         self.roiClassifier = torch.nn.Sequential(
             torch.nn.Linear(in_features = 25088, out_features = 4096),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Linear(in_features = 4096, out_features = 1024),
+            torch.nn.Linear(in_features = 4096, out_features = 1024),#1024
             torch.nn.ReLU(inplace=True),
             torch.nn.Linear(in_features = 1024, out_features = numROIs)
         )
@@ -171,6 +171,7 @@ class roiVGG(torch.nn.Module):
         # hook = extractedFeatures.register_hook(self.activations_hook)
         intermediateOutput = self.maxPool(extractedFeatures)
         intermediateOutput = self.adaptiveAvgPool(intermediateOutput)
+        print(intermediateOutput.shape)
         intermediateOutput = torch.flatten(intermediateOutput, 1)
         return self.cocoClassifier(intermediateOutput), self.roiClassifier(intermediateOutput)
     def get_activation_gradient(self):
@@ -292,8 +293,8 @@ numClasses = 12
 numROIs = len(trainingDataset.lhROIs)
 model = roiVGG(numClasses, "./cocoVGGModel.pth", numROIs, device).to(device)
 learningRate = 0.00001
-optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-5)#,  weight_decay=1e-4
-scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
+optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-2)#,  weight_decay=1e-4
+# scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
 criterion = torch.nn.MSELoss()
 
 
@@ -330,15 +331,14 @@ for epoch in range(epochs):
             avgEvalLoss += evalLoss.item()
             # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
             avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
-    print(f"Epoch {epoch} using lr = {scheduler.get_last_lr()} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
-    scheduler.step()
-
-        # learningRate = 0.0000001
-        # if first:
-        #     first = False
-        #     learningRate = 0.0000001
-        #     for g in optim.param_groups:
-        #         g["lr"] = learningRate
+    print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
+    # scheduler.step()
+    # learningRate = 0.000001
+    # if epoch == 10:
+    #     first = False
+    #     learningRate = 0.0000001
+    #     for g in optim.param_groups:
+    #         g["lr"] = learningRate
         # if epoch == 5:
         #     learningRate = 0.00000001
         #     for g in optim.param_groups:
