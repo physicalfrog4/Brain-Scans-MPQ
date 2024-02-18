@@ -6,6 +6,10 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision.models import vgg19
 from torchvision import transforms
+from torchvision import ops
+
+from ultralytics import YOLO
+
 
 from sklearn.model_selection import train_test_split
 
@@ -184,6 +188,70 @@ class roiVGG(torch.nn.Module):
         return ""
 
 
+class roiVGGYolo(torch.nn.Module):
+    def __init__(self, numROIs: int, tsfms):
+        super(roiVGGYolo, self).__init__()
+        self.vgg = vgg19(weights = "DEFAULT")
+        for params in self.vgg.parameters():
+            params.requires_grad = False
+        self.yolo = YOLO("yolov8n.pt")
+        for params in self.yolo.parameters():
+            params.requires_grad = False
+        self.MLP = torch.nn.Sequential(
+            torch.nn.Linear(25088, 4096),
+            torch.nn.ReLU(),
+            torch.nn.Linear(4096, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Linear(1024, numROIs),
+        )
+        self.tsfms = tsfms
+    def forward(self, img, imgPaths):
+        pooling = self.vgg.features(img)
+        pooling = self.vgg.avgpool(pooling)
+        yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
+        yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput))]
+        boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
+        finalFMRIs = []
+        count = 0
+        for boundingBoxData in boundingBoxDataAllImages:
+            print(boundingBoxData)
+            print(imgPaths[count])
+            objectROIPools = ops.roi_pool(pooling, [boundingBoxData], output_size = (7,7))
+            fmriPieces = []
+            for objectROIPool in objectROIPools:
+                # print("objROIP")
+                # print(objectROIPool.shape)
+                # print(objectROIPool)
+                input = torch.flatten(objectROIPool)
+                fmriPieces.append(self.MLP(input))
+            totalFMRI = torch.sum(torch.stack(fmriPieces), dim=0)
+            finalFMRIs.append(totalFMRI)
+            count+=1
+            # print("fmriPieces")
+            # print(f"Shape: ({len(fmriPieces)}, {fmriPieces[0].shape})")
+            # print(fmriPieces)
+        return torch.stack(finalFMRIs)   
+    def getMappedBoundingBox(self, yoloResults):
+        mappedBoxes = []
+        for result in yoloResults:
+            boundingBoxData = result.xyxyn
+            boundingBoxStartX, boundingBoxStartY, boundingBoxEndX, boundingBoxEndY = boundingBoxData[:, 0], boundingBoxData[:, 1], boundingBoxData[:, 2], boundingBoxData[:, 3]
+            transformedBoundingBoxStartX, transformedBoundingBoxStartY, transformedBoundingBoxEndX, transformedBoundingBoxEndY = boundingBoxStartX * 7, boundingBoxStartY * 7, boundingBoxEndX * 7, boundingBoxEndY * 7
+            startCellX = torch.floor(transformedBoundingBoxStartX)
+            startCellY = torch.floor(transformedBoundingBoxStartY)
+            endCellX = torch.ceil(transformedBoundingBoxEndX)
+            endCellY = torch.ceil(transformedBoundingBoxEndY)
+            mappedBoxes.append(torch.hstack((startCellX.reshape(-1,1), startCellY.reshape(-1,1), endCellX.reshape(-1,1), endCellY.reshape(-1,1))))
+        # print("mapped boxes")
+        # print(f"Shape: ({len(mappedBoxes)}, {mappedBoxes[0].shape})")
+        # print(mappedBoxes)
+        return mappedBoxes
+    def __str__(self):
+        return ""
+    def __repr__(self):
+        return ""
+
+
 def cocoVGGTrain():
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     subj = 1
@@ -267,71 +335,71 @@ def cocoVGGTrain():
 
 
 def roiTrain():
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-subj = 1
-parentDir = "./algonauts_2023_challenge_data/"
-metaDataDir = "./subjCocoImgData/"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    subj = 1
+    parentDir = "./algonauts_2023_challenge_data/"
+    metaDataDir = "./subjCocoImgData/"
 
-tsfms = transforms.Compose([
-    transforms.Resize((256,256)),
-    transforms.CenterCrop((224,224)),
-    transforms.ToTensor(),
-    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-
-numImages = len(getClassImages(parentDir, metaDataDir, subj, "person")[0])
-trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
-
-trainingDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs=trainIdxs, tsfms = tsfms)
-trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
-
-validDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs = validIdxs, tsfms = tsfms)
-validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
-
-numClasses = 12
-numROIs = len(trainingDataset.lhROIs)
-model = roiVGG(numClasses, "./cocoVGGModel.pth", numROIs, device).to(device)
-learningRate = 0.00001
-optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-2)#,  weight_decay=1e-4
-# scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
-criterion = torch.nn.MSELoss()
+    tsfms = transforms.Compose([
+        transforms.Resize((256,256)),
+        transforms.CenterCrop((224,224)),
+        transforms.ToTensor(),
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
 
 
-epochs = 30
-for epoch in range(epochs):
-    print(f"Epoch {epoch}")
-    avgTrainingLoss = 0
-    avgEvalLoss = 0
-    avgTrainingR2Score = 0
-    avgEvalR2Score = 0
-    for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
-        img, _, _, _, avgFMRI, _ = data
-        img = img.to(device)
-        avgFMRI = avgFMRI.to(device)
-        optim.zero_grad()
-        pred = model(img)[1]
-        loss = criterion(pred, avgFMRI)
-        loss.backward()
-        optim.step()  
-        # numRight += (torch.argmax(pred, 1) == label).sum().item()
-        avgTrainingLoss += loss.item()
-        # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-        avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
-    # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-    model.eval()
-    with torch.no_grad():
-        for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
+    numImages = len(getClassImages(parentDir, metaDataDir, subj, "person")[0])
+    trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
+
+    trainingDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs=trainIdxs, tsfms = tsfms)
+    trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
+
+    validDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs = validIdxs, tsfms = tsfms)
+    validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
+
+    numClasses = 12
+    numROIs = len(trainingDataset.lhROIs)
+    model = roiVGG(numClasses, "./cocoVGGModel.pth", numROIs, device).to(device)
+    learningRate = 0.00001
+    optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-2)#,  weight_decay=1e-4
+    # scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
+    criterion = torch.nn.MSELoss()
+
+
+    epochs = 30
+    for epoch in range(epochs):
+        print(f"Epoch {epoch}")
+        avgTrainingLoss = 0
+        avgEvalLoss = 0
+        avgTrainingR2Score = 0
+        avgEvalR2Score = 0
+        for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
             img, _, _, _, avgFMRI, _ = data
             img = img.to(device)
             avgFMRI = avgFMRI.to(device)
+            optim.zero_grad()
             pred = model(img)[1]
-            # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-            evalLoss = criterion(pred, avgFMRI)
-            avgEvalLoss += evalLoss.item()
+            loss = criterion(pred, avgFMRI)
+            loss.backward()
+            optim.step()  
+            # numRight += (torch.argmax(pred, 1) == label).sum().item()
+            avgTrainingLoss += loss.item()
             # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-            avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
-    print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
+            avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
+        # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+        model.eval()
+        with torch.no_grad():
+            for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
+                img, _, _, _, avgFMRI, _ = data
+                img = img.to(device)
+                avgFMRI = avgFMRI.to(device)
+                pred = model(img)[1]
+                # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+                evalLoss = criterion(pred, avgFMRI)
+                avgEvalLoss += evalLoss.item()
+                # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
+                avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
+        print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
     # scheduler.step()
     # learningRate = 0.000001
     # if epoch == 10:
@@ -347,6 +415,79 @@ for epoch in range(epochs):
         # model.train()
 
 
-    torch.save(model.state_dict(), './cocoVGGModel.pth')
+    torch.save(model.state_dict(), './cocoVGGROIModel.pth')
 
-roiTrain()
+# def vggYoloTrain():
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+subj = 1
+parentDir = "./algonauts_2023_challenge_data/"
+metaDataDir = "./subjCocoImgData/"
+
+tsfms = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+yoloTsfms = transforms.Compose([
+    transforms.Resize((640, 640)),
+    transforms.ToTensor()
+])
+
+
+numImages = len(getClassImages(parentDir, metaDataDir, subj, "person")[0])
+trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9)
+
+trainingDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs=trainIdxs, tsfms = tsfms)
+trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
+
+validDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs = validIdxs, tsfms = tsfms)
+validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
+
+# numClasses = 12
+numROIs = len(trainingDataset.lhROIs)
+model = roiVGGYolo(numROIs, yoloTsfms).to(device)
+learningRate = 0.00001
+optim = torch.optim.Adam(model.parameters(), learningRate)#,  weight_decay=1e-4
+# scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
+criterion = torch.nn.MSELoss()
+
+epochs = 30
+for epoch in range(epochs):
+    print(f"Epoch {epoch}")
+    avgTrainingLoss = 0
+    avgEvalLoss = 0
+    avgTrainingR2Score = 0
+    avgEvalR2Score = 0
+    for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
+        img, imgPaths, _, _, avgFMRI, _ = data
+        img = img.to(device)
+        avgFMRI = avgFMRI.to(device)
+        optim.zero_grad()
+        # print("start")
+        # print(imgPaths)
+        # print("end")
+        pred = model(img, imgPaths)
+        loss = criterion(pred, avgFMRI)
+        loss.backward()
+        optim.step()  
+        # numRight += (torch.argmax(pred, 1) == label).sum().item()
+        avgTrainingLoss += loss.item()
+        # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
+        avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
+    # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+    model.eval()
+    with torch.no_grad():
+        for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
+            img, imgPaths, _, _, avgFMRI, _ = data
+            img = img.to(device)
+            avgFMRI = avgFMRI.to(device)
+            pred = model(img, imgPaths)
+            # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+            evalLoss = criterion(pred, avgFMRI)
+            avgEvalLoss += evalLoss.item()
+            # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
+            avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
+    print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
+
+# vggYoloTrain()
