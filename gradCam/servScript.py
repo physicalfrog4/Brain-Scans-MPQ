@@ -8,8 +8,18 @@ from torchvision.models import vgg19
 from torchvision import transforms
 from torchvision import ops
 
-from ultralytics import YOLO
-
+from ultralytics import YOLO, settings
+settings.update({
+    "clearml" : False,          
+    "comet" : False,           
+    "dvc" : False,             
+    "hub" : False,     
+    "mlflow" : False,          
+    "neptune" : False,         
+    "raytune" : False,         
+    "tensorboard" : False,     
+    "wandb" : False     
+})
 
 from sklearn.model_selection import train_test_split
 
@@ -187,6 +197,14 @@ class roiVGG(torch.nn.Module):
     def __repr__(self):
         return ""
 
+class YoloModel(YOLO):
+    def __init__(self, *args, **kwargs):
+        super(YoloModel, self).__init__(*args, **kwargs)
+    def __str__(self):
+        return ""
+    def __repr__(self):
+        return ""
+
 
 class roiVGGYolo(torch.nn.Module):
     def __init__(self, numROIs: int, tsfms):
@@ -194,7 +212,7 @@ class roiVGGYolo(torch.nn.Module):
         self.vgg = vgg19(weights = "DEFAULT")
         for params in self.vgg.parameters():
             params.requires_grad = False
-        self.yolo = YOLO("yolov8n.pt")
+        self.yolo = YoloModel("yolov8n.pt")
         for params in self.yolo.parameters():
             params.requires_grad = False
         self.MLP = torch.nn.Sequential(
@@ -209,13 +227,16 @@ class roiVGGYolo(torch.nn.Module):
         pooling = self.vgg.features(img)
         pooling = self.vgg.avgpool(pooling)
         yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
-        yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput))]
+        yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput), verbose=False)]
         boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
         finalFMRIs = []
+        indices = []
         count = 0
         for boundingBoxData in boundingBoxDataAllImages:
-            print(boundingBoxData)
-            print(imgPaths[count])
+            # print(boundingBoxData)
+            # print(imgPaths[count])
+            if len(boundingBoxData) == 0:
+                continue
             objectROIPools = ops.roi_pool(pooling, [boundingBoxData], output_size = (7,7))
             fmriPieces = []
             for objectROIPool in objectROIPools:
@@ -226,11 +247,12 @@ class roiVGGYolo(torch.nn.Module):
                 fmriPieces.append(self.MLP(input))
             totalFMRI = torch.sum(torch.stack(fmriPieces), dim=0)
             finalFMRIs.append(totalFMRI)
+            indices.append(count)
             count+=1
             # print("fmriPieces")
             # print(f"Shape: ({len(fmriPieces)}, {fmriPieces[0].shape})")
             # print(fmriPieces)
-        return torch.stack(finalFMRIs)   
+        return torch.stack(finalFMRIs), indices 
     def getMappedBoundingBox(self, yoloResults):
         mappedBoxes = []
         for result in yoloResults:
@@ -467,7 +489,8 @@ for epoch in range(epochs):
         # print("start")
         # print(imgPaths)
         # print("end")
-        pred = model(img, imgPaths)
+        pred, indices = model(img, imgPaths)
+        avgFMRI = avgFMRI[indices]
         loss = criterion(pred, avgFMRI)
         loss.backward()
         optim.step()  
@@ -476,13 +499,14 @@ for epoch in range(epochs):
         # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
         avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
     # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-    model.eval()
+    # model.eval()
     with torch.no_grad():
         for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
             img, imgPaths, _, _, avgFMRI, _ = data
             img = img.to(device)
             avgFMRI = avgFMRI.to(device)
-            pred = model(img, imgPaths)
+            pred, indices = model(img, imgPaths)
+            avgFMRI = avgFMRI[indices]
             # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
             evalLoss = criterion(pred, avgFMRI)
             avgEvalLoss += evalLoss.item()
@@ -491,3 +515,12 @@ for epoch in range(epochs):
     print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
 
 # vggYoloTrain()
+
+Epoch 0 using lr = 0.0001 TrainingMSE: 0.6208774602183929, ValidMSE: 0.21420054137706757, trainR2 = -19.348248771346597, evalR2= -15.898744389024309
+Epoch 1 using lr = 0.0001 TrainingMSE: 0.20970135067517942, ValidMSE: 0.2026874323685964, trainR2 = -18.664112537377935, evalR2= -24.643974668814124
+Epoch 2 using lr = 0.0001 TrainingMSE: 0.1981404395057605, ValidMSE: 0.19074233869711557, trainR2 = -34.34108290412771, evalR2= -50.389041420101506
+Epoch 3 using lr = 0.0001 TrainingMSE: 0.16801268893938798, ValidMSE: 0.1840176781018575, trainR2 = -42.39841668386212, evalR2= -37.14607002350664
+Epoch 4 using lr = 0.0001 TrainingMSE: 0.16238422176012626, ValidMSE: 0.17362859348456064, trainR2 = -51.06641750683309, evalR2= -106.14225667351504
+Epoch 5 using lr = 0.0001 TrainingMSE: 0.15964329701203567, ValidMSE: 0.17424626151720682, trainR2 = -68.24734548478521, evalR2= -105.76064201597053
+Epoch 6 using lr = 0.0001 TrainingMSE: 0.15870995819568634, ValidMSE: 0.17357205351193747, trainR2 = -75.92461572506105, evalR2= -91.14852491273398
+Epoch 7 using lr = 0.0001 TrainingMSE: 0.15855002575195754, ValidMSE: 0.18523097534974417, trainR2 = -70.99317614611225, evalR2= -62.54660335348844
