@@ -210,6 +210,7 @@ class roiVGGYolo(torch.nn.Module):
     def __init__(self, numROIs: int, tsfms):
         super(roiVGGYolo, self).__init__()
         self.vgg = vgg19(weights = "DEFAULT")
+        self.vggConvFeatures = self.vgg.features[:35]
         for params in self.vgg.parameters():
             params.requires_grad = False
         self.yolo = YoloModel("yolov8n.pt")
@@ -224,8 +225,9 @@ class roiVGGYolo(torch.nn.Module):
         )
         self.tsfms = tsfms
     def forward(self, img, imgPaths):
-        pooling = self.vgg.features(img)
-        pooling = self.vgg.avgpool(pooling)
+        # pooling = self.vgg.features(img)
+        # pooling = self.vgg.avgpool(pooling)
+        convFeatures = self.vggConvFeatures(img)
         yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
         yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput), verbose=False)]
         boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
@@ -237,7 +239,7 @@ class roiVGGYolo(torch.nn.Module):
             # print(imgPaths[count])
             if len(boundingBoxData) == 0:
                 continue
-            objectROIPools = ops.roi_pool(pooling, [boundingBoxData], output_size = (7,7))
+            objectROIPools = ops.roi_align(convFeatures, [boundingBoxData], output_size = (7,7))
             fmriPieces = []
             for objectROIPool in objectROIPools:
                 # print("objROIP")
@@ -440,7 +442,7 @@ def roiTrain():
     torch.save(model.state_dict(), './cocoVGGROIModel.pth')
 
 # def vggYoloTrain():
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cuda:1" if torch.cuda.is_available() else "cpu"
 subj = 1
 parentDir = "./algonauts_2023_challenge_data/"
 metaDataDir = "./subjCocoImgData/"
@@ -470,8 +472,8 @@ validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
 numROIs = len(trainingDataset.lhROIs)
 model = roiVGGYolo(numROIs, yoloTsfms).to(device)
 learningRate = 0.00001
-optim = torch.optim.Adam(model.parameters(), learningRate)#,  weight_decay=1e-4
-# scheduler = lr_scheduler.StepLR(optim, step_size=3, gamma=0.5)
+optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-5)#,  weight_decay=1e-4
+scheduler = lr_scheduler.StepLR(optim, step_size=10, gamma=0.1)
 criterion = torch.nn.MSELoss()
 
 epochs = 30
@@ -512,24 +514,7 @@ for epoch in range(epochs):
             avgEvalLoss += evalLoss.item()
             # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
             avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
+    scheduler.step()
     print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
 
 # vggYoloTrain()
-
-Epoch 0 using lr = 1e-05 TrainingMSE: 0.24650328377118477, ValidMSE: 0.19375486175219217, trainR2 = -7.625267733626556, evalR2= -12.356705763269654
-Epoch 1 using lr = 1e-05 TrainingMSE: 0.18768594356683585, ValidMSE: 0.22018982470035553, trainR2 = -12.214109572149878, evalR2= -8.384807029140058
-Epoch 2 using lr = 1e-05 TrainingMSE: 0.1760681735781523, ValidMSE: 0.17714243630568186, trainR2 = -16.73048399197644, evalR2= -20.757941338389095
-Epoch 3 using lr = 1e-05 TrainingMSE: 0.16484679396335894, ValidMSE: 0.16567627092202505, trainR2 = -22.1752094720062, evalR2= -45.04963277928502
-Epoch 4 using lr = 1e-05 TrainingMSE: 0.1575962551511251, ValidMSE: 0.16889413197835287, trainR2 = -32.81867493022851, evalR2= -27.80360850972889
-Epoch 5 using lr = 1e-05 TrainingMSE: 0.15647497200048888, ValidMSE: 0.16427722573280334, trainR2 = -35.09076421157616, evalR2= -35.641196329953694
-Epoch 6 using lr = 1e-05 TrainingMSE: 0.15564923790784982, ValidMSE: 0.16318556666374207, trainR2 = -35.96132734104747, evalR2= -39.145821150269136
-Epoch 7 using lr = 1e-05 TrainingMSE: 0.1537240118934558, ValidMSE: 0.16099330286184946, trainR2 = -42.269807393690584, evalR2= -47.73509331838227
-Epoch 8 using lr = 1e-05 TrainingMSE: 0.15184346873026627, ValidMSE: 0.16702192525068918, trainR2 = -45.19708969757432, evalR2= -33.47447206920615
-Epoch 9 using lr = 1e-05 TrainingMSE: 0.1529601623232548, ValidMSE: 0.1609935313463211, trainR2 = -49.078086689815564, evalR2= -55.8409053744091
-Epoch 11 using lr = 1e-05 TrainingMSE: 0.15181895574698082, ValidMSE: 0.1595749408006668, trainR2 = -49.72943311658242, evalR2= -64.03805876632208
-Epoch 12 using lr = 1e-05 TrainingMSE: 0.15166527663285917, ValidMSE: 0.1594913750886917, trainR2 = -67.7119690115551, evalR2= -55.474116812966635
-Epoch 13 using lr = 1e-05 TrainingMSE: 0.15293799913846529, ValidMSE: 0.1594665745894114, trainR2 = -56.15792784313115, evalR2= -55.58497980355838
-Epoch 14 using lr = 1e-05 TrainingMSE: 0.15033111090843493, ValidMSE: 0.1610065996646881, trainR2 = -56.71758709772686, evalR2= -53.218392007138895
-Epoch 15 using lr = 1e-05 TrainingMSE: 0.149626782307258, ValidMSE: 0.1597311000029246, trainR2 = -60.92608237818389, evalR2= -41.714277238061605
-Epoch 16 using lr = 1e-05 TrainingMSE: 0.14969483189857924, ValidMSE: 0.16075542569160461, trainR2 = -59.08405926474505, evalR2= -50.44897151484258
-Epoch 17 using lr = 1e-05 TrainingMSE: 0.14929455490066454, ValidMSE: 0.15939724445343018, trainR2 = -57.58491004859822, evalR2= -57.94167399290697
