@@ -80,7 +80,7 @@ def extract_features(feature_extractor, dataloader, pca):
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
-    torch.device = 'cuda'
+    torch.device = 'cuda:0'
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
 
