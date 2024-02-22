@@ -81,7 +81,7 @@ class ImageDataset(Dataset):
 
 
 def normalize_fmri_data(data):
-    clip_percentile = 0.01
+    clip_percentile = 0.05
     # Clip extreme values to handle outliers
     min_clip = np.percentile(data, clip_percentile)
     max_clip = np.percentile(data, 100 - clip_percentile)
@@ -129,14 +129,14 @@ def organize_input(classifications, image_data, fmri_data):
     for j in enumerate(classifications):
         # Image NUM
         arr = []
+        arr.append((j[1][0]))
         arr.append((j[1][1]))
-        arr.append((j[1][2]))
         arr = list(arr)
-        print(arr)
+        # print(arr)
 
         # Image Data
         arr0 = (np.array(image_data[index])).tolist()
-        print(arr0)
+        # print(arr0)
         new_list = arr + arr0
         results.append(new_list)
 
