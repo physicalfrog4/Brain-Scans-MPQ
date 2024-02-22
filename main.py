@@ -81,10 +81,10 @@ def main():
     print("________ Extract Image Features ________")
 
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
-        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 250))
+        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 64))
 
     features_train, features_val, features_test = (
-        extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 250))
+        extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 64))
 
     print("________ LEARN MORE ________")
 
