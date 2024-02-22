@@ -12,7 +12,7 @@ from LEM import extract_data_features, predAccuracy
 
 def main():
     # setting up the directories and ARGS
-    data_dir = ''
+    data_dir = '../MQP/algonauts_2023_challenge_data/'
     parent_submission_dir = '../submission'
     subj = 5  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
     # args
