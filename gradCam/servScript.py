@@ -629,104 +629,104 @@ def vggYoloRandomForest():
         pickle.dump(rf_model, file)
 
 
-def kFoldVGGYoloMLP():
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    subj = 1
-    parentDir = "./algonauts_2023_challenge_data/"
-    metaDataDir = "./subjCocoImgData/"
+# def kFoldVGGYoloMLP():
+device = "cuda:1" if torch.cuda.is_available() else "cpu"
+subj = 1
+parentDir = "./algonauts_2023_challenge_data/"
+metaDataDir = "./subjCocoImgData/"
 
-    tsfms = transforms.Compose([
-        transforms.Resize((224,224)),
-        transforms.ToTensor(),
-        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+tsfms = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 
-    yoloTsfms = transforms.Compose([
-        transforms.Resize((640, 640)),
-        transforms.ToTensor()
-    ])
+yoloTsfms = transforms.Compose([
+    transforms.Resize((640, 640)),
+    transforms.ToTensor()
+])
 
-    trainingDataset = AlgonautsDataset(parentDir, subj,  transform = tsfms)
-    validDataset = AlgonautsDataset(parentDir, subj, transform = tsfms)
+trainingDataset = AlgonautsDataset(parentDir, subj,  transform = tsfms)
+# validDataset = AlgonautsDataset(parentDir, subj, transform = tsfms)
 
-    numROIs = len(trainingDataset.lhFMRI[0])
-    bestModel = {
-        "fold": 1,
-        "mse": float('inf'),  # Set to positive infinity initially
-        "r2": float('-inf'),  # Set to negative infinity initially
-        "params": None  # Initialize with None, will be updated with model state dict
-    }
+numROIs = len(trainingDataset.lhAvgFMRI[0])
+bestModel = {
+    "fold": 1,
+    "mse": float('inf'),  # Set to positive infinity initially
+    "r2": float('-inf'),  # Set to negative infinity initially
+    "params": None  # Initialize with None, will be updated with model state dict
+}
 
-    k_folds = 5
+k_folds = 5
 
-    # Use StratifiedKFold for balanced class distribution in each fold
-    skf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
+# Use StratifiedKFold for balanced class distribution in each fold
+skf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
 
-    # Loop over folds
-    for fold, (train_idxs, val_idxs) in enumerate(skf.split(trainingDataset.imagePaths)):
-        print(f"Fold {fold + 1}/{k_folds}")
-        trainSubset = Subset(trainingDataset, train_idxs)
-        trainDataLoader = DataLoader(trainSubset, batch_size = 64, shuffle = True)
-
-        validSubset = Subset(validDataset, val_idxs)
-        validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
-
-        # numClasses = 12
-        model = roiVGGYolo(numROIs, yoloTsfms).to(device)
-        learningRate = 0.00001
-        optim = torch.optim.Adam(model.parameters(), learningRate)#,  weight_decay=1e-4
-        scheduler = lr_scheduler.StepLR(optim, step_size=10, gamma=0.1)
-        criterion = torch.nn.MSELoss()
-
-        epochs = 30
-        for epoch in range(epochs):
-            print(f"Epoch {epoch}")
-            avgTrainingLoss = 0
-            avgEvalLoss = 0
-            avgTrainingR2Score = 0
-            avgEvalR2Score = 0
-            for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
+# Loop over folds
+for fold, (train_idxs, val_idxs) in enumerate(skf.split(trainingDataset.imagePaths)):
+    print(f"Fold {fold + 1}/{k_folds}")
+    trainSubset = Subset(trainingDataset, train_idxs)
+    trainDataLoader = DataLoader(trainSubset, batch_size = 128, shuffle = True)
+    validSubset = Subset(trainingDataset, val_idxs)
+    validDataLoader = DataLoader(validSubset, batch_size = 128, shuffle = True)
+    # numClasses = 12
+    model = roiVGGYolo(numROIs, yoloTsfms).to(device)
+    learningRate = 0.00001
+    optim = torch.optim.Adam(model.parameters(), learningRate)#,  weight_decay=1e-4
+    scheduler = lr_scheduler.StepLR(optim, step_size=10, gamma=0.1)
+    criterion = torch.nn.MSELoss()
+    epochs = 15
+    for epoch in range(epochs):
+        print(f"Epoch {epoch}")
+        avgTrainingLoss = 0
+        avgEvalLoss = 0
+        avgTrainingR2Score = 0
+        avgEvalR2Score = 0
+        for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
+            img, imgPaths, _, _, avgLhFMRI, _ = data
+            img = img.to(device)
+            avgLhFMRI = avgLhFMRI.to(device)
+            optim.zero_grad()
+            # print("start")
+            # print(imgPaths)
+            # print("end")
+            pred, indices = model(img, imgPaths)
+            avgLhFMRI = avgLhFMRI[indices]
+            loss = criterion(pred, avgLhFMRI)
+            loss.backward()
+            optim.step()  
+            # numRight += (torch.argmax(pred, 1) == label).sum().item()
+            avgTrainingLoss += loss.item()
+            # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
+            avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgLhFMRI.detach().cpu().numpy())
+        # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+        # model.eval()
+        with torch.no_grad():
+            for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
                 img, imgPaths, _, _, avgLhFMRI, _ = data
                 img = img.to(device)
                 avgLhFMRI = avgLhFMRI.to(device)
-                optim.zero_grad()
-                # print("start")
-                # print(imgPaths)
-                # print("end")
                 pred, indices = model(img, imgPaths)
                 avgLhFMRI = avgLhFMRI[indices]
-                loss = criterion(pred, avgLhFMRI)
-                loss.backward()
-                optim.step()  
-                # numRight += (torch.argmax(pred, 1) == label).sum().item()
-                avgTrainingLoss += loss.item()
+                # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
+                evalLoss = criterion(pred, avgLhFMRI)
+                avgEvalLoss += evalLoss.item()
                 # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-                avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgLhFMRI.detach().cpu().numpy())
-            # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-            # model.eval()
-            with torch.no_grad():
-                for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
-                    img, imgPaths, _, _, avgLhFMRI, _ = data
-                    img = img.to(device)
-                    avgLhFMRI = avgLhFMRI.to(device)
-                    pred, indices = model(img, imgPaths)
-                    avgLhFMRI = avgLhFMRI[indices]
-                    # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-                    evalLoss = criterion(pred, avgLhFMRI)
-                    avgEvalLoss += evalLoss.item()
-                    # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-                    avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgLhFMRI.detach().cpu().numpy())
-            scheduler.step()
-            validMse = avgEvalLoss / len(validDataLoader)
-            validR2 = avgEvalR2Score / len(validDataLoader)
-            print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {validMse}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {validR2}")
-            if validMse < bestModel["mse"]:
-                print("BESTMODEL SO FAR")
-                bestModel["fold"] = fold
-                bestModel["mse"] = validMse
-                bestModel["r2"] = avgEvalR2Score / len(validDataLoader)
-                bestModel["params"] = model.state_dict()  # Update with the current model's state dict
+                avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgLhFMRI.detach().cpu().numpy())
+        scheduler.step()
+        validMse = avgEvalLoss / len(validDataLoader)
+        validR2 = avgEvalR2Score / len(validDataLoader)
+        print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {validMse}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {validR2}")
+        if validMse < bestModel["mse"]:
+            print("BESTMODEL SO FAR")
+            bestModel["fold"] = fold
+            bestModel["mse"] = validMse
+            bestModel["r2"] = validR2
+            bestModel["params"] = model.state_dict()  # Update with the current model's state dict
 
+torch.save(bestModel["params"], './5FoldBestModel.pth')
+bestModelData = np.array([bestModel["fold"], bestModel["mse"], bestModel["r2"]])
+np.save("5FoldBestModelData.npy", bestModelData)
 
 
 

@@ -101,8 +101,34 @@ class NSDDatasetClassSubset(Dataset):
             img = self.tsfms(img)
         return img, self.imgPaths[idx], torch.from_numpy(lh), torch.from_numpy(rh), torch.tensor(lhAvg, dtype = torch.float32), torch.tensor(rhAvg, dtype = torch.float32)
 
-        
-
+class AlgonautsDataset(Dataset):
+    def __init__(self, parentDir: str, subj: int, dataIdxs: list = None, transform = None):
+        self.imagesPath = os.path.join(parentDir, f"subj0{subj}/training_split/training_images/")
+        self.fmriPath = os.path.join(parentDir, f"subj0{subj}/training_split/training_fmri/")
+        self.imagePaths = np.array(os.listdir(self.imagesPath))
+        self.lhFMRI = np.load(os.path.join(self.fmriPath, "lh_training_fmri.npy"))
+        self.rhFMRI = np.load(os.path.join(self.fmriPath, "rh_training_fmri.npy"))
+        self.lhROIs, self.lhAvgFMRI = getAvgROI(parentDir, subj, self.lhFMRI)
+        self.rhROIs, self.rhAvgFMRI = getAvgROI(parentDir, subj, self.rhFMRI, hemi="r")
+        self.transform = transform
+        if dataIdxs is not None:
+            self.imagePaths = self.imagePaths[dataIdxs]
+            self.lhFMRI = self.lhFMRI[dataIdxs]
+            self.rhFMRI = self.rhFMRI[dataIdxs]
+            self.lhAvgFMRI = self.lhAvgFMRI[dataIdxs]
+            self.rhAvgFMRI = self.rhAvgFMRI[dataIdxs]
+    def __len__(self):
+        return len(self.imagePaths)
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        imagePath = os.path.join(self.imagesPath, self.imagePaths[idx])
+        image = Image.open(imagePath)
+        if self.transform:
+            image = self.transform(image)
+        lh, rh = self.lhFMRI[idx], self.rhFMRI[idx]
+        avgLh, avgRh = self.lhAvgFMRI[idx], self.rhAvgFMRI[idx]
+        return image, imagePath, torch.tensor(lh, dtype=torch.float32), torch.tensor(rh, dtype=torch.float32), torch.tensor(avgLh, dtype=torch.float32), torch.tensor(avgRh, dtype=torch.float32)
 
 
 class COCOImgWithLabel(Dataset):

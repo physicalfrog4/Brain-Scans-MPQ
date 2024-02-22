@@ -96,41 +96,51 @@ class roiVGGYolo(torch.nn.Module):
             torch.nn.Linear(1024, numROIs),
         )
         self.tsfms = tsfms
+
     def forward(self, img, imgPaths):
-        # pooling = self.vgg.features(img)
-        # pooling = self.vgg.avgpool(pooling)
+        #extract vgg features from image
         convFeatures = self.vggConvFeatures(img)
+
+        #transform the original images such as it's compatible with the YOLO model
         yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
+
+        #Make YOLO predictions on images and get bounding box data
         yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput), verbose=False)]
         boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
         finalFMRIs = []
         indices = []
         count = 0
+
+        #for each detected bounding box
         for boundingBoxData in boundingBoxDataAllImages:
-            # print(boundingBoxData)
-            # print(imgPaths[count])
+            #if no bounding boxes, continue
             if len(boundingBoxData) == 0:
                 continue
+
+            #pool the features in the regions that overlap with a bounding box. returns a result for each detected object
             objectROIPools = ops.roi_pool(convFeatures, [boundingBoxData], output_size = (7,7))
             fmriPieces = []
+
+            #for the pooled results for each object, predict the partial fmri data
             for objectROIPool in objectROIPools:
-                # print("objROIP")
-                # print(objectROIPool.shape)
-                # print(objectROIPool)
                 input = torch.flatten(objectROIPool)
                 fmriPieces.append(self.MLP(input))
+
+            #sum over all partial fmri data
             totalFMRI = torch.sum(torch.stack(fmriPieces), dim=0)
             finalFMRIs.append(totalFMRI)
             indices.append(count)
             count+=1
-            # print("fmriPieces")
-            # print(f"Shape: ({len(fmriPieces)}, {fmriPieces[0].shape})")
-            # print(fmriPieces)
         return torch.stack(finalFMRIs), indices 
+
+    #extract bounding box data for each of the yolo results objects
     def getMappedBoundingBox(self, yoloResults):
         mappedBoxes = []
         for result in yoloResults:
+            #get normalized top left and bottom right coordinates for the bounding box
             boundingBoxData = result.xyxyn
+
+            #Get interested cells in 7x7 matrix for ROI pooling
             boundingBoxStartX, boundingBoxStartY, boundingBoxEndX, boundingBoxEndY = boundingBoxData[:, 0], boundingBoxData[:, 1], boundingBoxData[:, 2], boundingBoxData[:, 3]
             transformedBoundingBoxStartX, transformedBoundingBoxStartY, transformedBoundingBoxEndX, transformedBoundingBoxEndY = boundingBoxStartX * 7, boundingBoxStartY * 7, boundingBoxEndX * 7, boundingBoxEndY * 7
             startCellX = torch.floor(transformedBoundingBoxStartX)
@@ -138,10 +148,9 @@ class roiVGGYolo(torch.nn.Module):
             endCellX = torch.ceil(transformedBoundingBoxEndX)
             endCellY = torch.ceil(transformedBoundingBoxEndY)
             mappedBoxes.append(torch.hstack((startCellX.reshape(-1,1), startCellY.reshape(-1,1), endCellX.reshape(-1,1), endCellY.reshape(-1,1))))
-        # print("mapped boxes")
-        # print(f"Shape: ({len(mappedBoxes)}, {mappedBoxes[0].shape})")
-        # print(mappedBoxes)
         return mappedBoxes
+
+    #Overwrite functions so that the model isn't printed on server side after each call to train() or eval()
     def __str__(self):
         return ""
     def __repr__(self):
