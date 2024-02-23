@@ -10,6 +10,7 @@ from torchvision.models import vgg19
 
 def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size):
     vgg = vgg19(weights="DEFAULT")
+    vgg.to('cuda:1')
     vggConvFeatures = vgg.features[:35]
     train_nodes, _ = get_graph_node_names(vgg)
     model_layer = "avgpool"
@@ -64,7 +65,7 @@ def predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val):
 def extract_features(feature_extractor, dataloader, pca):
     features = []
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader), desc="Extracting Features"):
-        # ...
+        # ...rch.device('cuda')
         # Extract features
         ft = feature_extractor(d)
         # Flatten the features
@@ -80,7 +81,7 @@ def extract_features(feature_extractor, dataloader, pca):
 
 
 def fit_pca(feature_extractor, dataloader, batch_size):
-    torch.device = 'cuda:0'
+    #torch.device('cuda')
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
 

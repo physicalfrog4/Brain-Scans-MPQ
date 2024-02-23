@@ -127,21 +127,23 @@ def organize_input(classifications, image_data, fmri_data):
     index = 0
 
     for j in enumerate(classifications):
+        print(j)
+        
         # Image NUM
         arr = []
-        arr.append((j[1][0]))
         arr.append((j[1][1]))
+        arr.append((j[1][2]))
         arr = list(arr)
-        # print(arr)
+        #print(arr)
 
         # Image Data
-        arr0 = (np.array(image_data[index])).tolist()
-        # print(arr0)
+        arr0 = (np.array(image_data[j[1][0]])).tolist()
+        #print(arr0)
         new_list = arr + arr0
         results.append(new_list)
 
         # FMRI Data
-        fmri.append(np.array(fmri_data[index]))
+        fmri.append(np.array(fmri_data[j[1][0]]))
         index = index + 1
     df = pd.DataFrame(results)
     df1 = pd.DataFrame(fmri)

@@ -1,37 +1,31 @@
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, confusion_matrix
 from ultralytics import YOLO
 
 
-def Predictions(train, train_fmri, val, val_fmri):
+def Predictions(train, train_fmri, val):
     print("PREDICTIONS")
     train = train.to_numpy()
     train_fmri = train_fmri.to_numpy()
     val = val.to_numpy()
-    val_fmri = val_fmri.to_numpy()
+   
 
     linear_regression_model = LinearRegression()
     linear_regression_model.fit(train, train_fmri)
     linear_regression_predictions = linear_regression_model.predict(val)
 
-    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", linear_regression_predictions)
-    linear_regression_mse = mean_squared_error(val_fmri, linear_regression_predictions)
-    print(f'Random Forest Mean Squared Error: {linear_regression_mse}')
-    score = linear_regression_model.score(val, val_fmri)
-    print("accuracy score", score)
-
     return linear_regression_predictions
 
 
-def make_classifications(image_list, idxs, device, batch_size=300):
+def make_classifications(image_list, idxs, device, batch_size=64):
     modelYOLO = YOLO('yolov8n.pt')
     modelYOLO.to(device)
     results = []
 
     words = ['furniture', 'food', 'kitchenware', 'appliance', 'person', 'animal', 'vehicle', 'accessory',
              'electronics', 'sports', 'traffic', 'outdoor', 'home', 'clothing', 'hygiene', 'toy', 'plumbing',
-             'safety', 'luggage', 'computer', 'fruit', 'vegetable', 'tool']
+               'computer', 'fruit', 'vegetable', 'tool']
 
     for start_idx in range(0, len(image_list), batch_size):
         end_idx = start_idx + batch_size
@@ -40,14 +34,15 @@ def make_classifications(image_list, idxs, device, batch_size=300):
 
         image_results = modelYOLO.predict(batch_imgs, stream=True)
         names = modelYOLO.names
-        print(names)
+        # print(names)
 
         for i, result in enumerate(image_results):
+            # print(i,result)
             detection_count = result.boxes.shape[0]
             image_idx = batch_idxs[i]
 
-            best_confidence = 0.3
-            best_item = None
+            best_confidence = 0.75
+            # best_item = None
             for j in range(len(result.boxes)):
                 confidence = float(result.boxes.conf[j].item())
                 if confidence > best_confidence:
@@ -55,20 +50,21 @@ def make_classifications(image_list, idxs, device, batch_size=300):
                     name = names[cls]
                     name = class_mapping.get(name)
                     num = words.index(name)
-                    best_confidence = confidence
+                    # best_confidence = confidence
+                    results.append([i, cls, num])
+                    # print(i,cls,num)
 
-                    if best_item is None or confidence > best_item['confidence']:
-                        best_item = {
-                            'cls': cls,
-                            'name': name,
-                            'num': num,
-                            'confidence': confidence
-                        }
-            if best_item:
-                results.append([cls, num])
-            else:
-
-                results.append([-1, -1])
+                    #if best_item is None or confidence > best_item['confidence']:
+                    #    best_item = {
+                    #        'cls': cls,
+                    #        'name': name,
+                    #        'num': num,
+                    #        'confidence': confidence
+                    #    }
+            #if best_item:
+            #    results.append([cls, num])
+            #else:
+            #    results.append([-1, -1])
 
     df = pd.DataFrame(results)
     df = df.fillna(-1)
@@ -141,12 +137,12 @@ class_mapping = {
     'teddy bear': 'toy',
     'remote': 'electronics',
     'apple': 'fruit',
-    'suitcase': 'luggage',
+    'suitcase': 'accessory',
     'vase': 'home',
     'skis': 'sports',
     'hot dog': 'food',
     'frisbee': 'toy',
-    'backpack': 'luggage',
+    'backpack': 'accessory',
     'microwave': 'appliance',
     'wine glass': 'kitchenware',
     'snowboard': 'sports',
