@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 
+#Gets the absolute path for each image in the subjects training images folder
 def getFileNames(parentDir: str, subj: int):
     imgsPath = f"subj0{subj}/training_split/training_images/"
     filesDir = os.path.join(parentDir,imgsPath)
@@ -13,7 +14,7 @@ def getFileNames(parentDir: str, subj: int):
     imgPaths = np.array([os.path.join(parentDir, imgsPath, img) for img in fileNames])
     return imgPaths
 
-
+#Gets the super class labels for each image in the training images folder
 def getImgLabels(metaDataDir: str, subj: int):
     filePath = os.path.join(metaDataDir, f"subj0{subj}ImgData.pkl")
     pklData = pd.read_pickle(filePath)
@@ -21,6 +22,7 @@ def getImgLabels(metaDataDir: str, subj: int):
     labelEncoder = LabelEncoder().fit(classes)
     return pklData["superClassLabel"], labelEncoder
 
+#Gets images that belong to a specific class according to COCO labels
 def getClassImages(dataDir:str, imgDataFolerDir: str, subj: int, className: str):
     pickleFilePath = os.path.join(imgDataFolerDir, f"subj0{subj}ImgData.pkl")
     imgData = pd.read_pickle(pickleFilePath)
@@ -40,9 +42,7 @@ def getClassImages(dataDir:str, imgDataFolerDir: str, subj: int, className: str)
             trainingIDsInClass.append(trainingID)
     return np.array(imagesInClass), np.array(trainingIDsInClass)
 
-    
-
-
+#Calculates the average fmri value for each ROI that has data
 def getAvgROI(parentFolderDir: str, subj: int, fmriData, hemi: str = "l"):
     rois = np.array(["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"])
     avgRoiValues = np.zeros((len(fmriData), len(rois)))
@@ -74,6 +74,8 @@ def getAvgROI(parentFolderDir: str, subj: int, fmriData, hemi: str = "l"):
     print(mask)
     return rois[mask], avgRoiValues[:, mask]
 
+#Not used
+#Creates dataset with images that belong to a single coco class
 class NSDDatasetClassSubset(Dataset):
     def __init__(self, parentFolderDir: str, imgDataFolderDir: str, subj: int, className: str, idxs: list = None, tsfms = None):
         self.imgPaths, self.trainingIDs = getClassImages(parentFolderDir, imgDataFolderDir, subj, className)
@@ -101,6 +103,8 @@ class NSDDatasetClassSubset(Dataset):
             img = self.tsfms(img)
         return img, self.imgPaths[idx], torch.from_numpy(lh), torch.from_numpy(rh), torch.tensor(lhAvg, dtype = torch.float32), torch.tensor(rhAvg, dtype = torch.float32)
 
+#currently using
+#Creates dataset with all training images for a specific subject 
 class AlgonautsDataset(Dataset):
     def __init__(self, parentDir: str, subj: int, dataIdxs: list = None, transform = None):
         self.imagesPath = os.path.join(parentDir, f"subj0{subj}/training_split/training_images/")
@@ -130,7 +134,8 @@ class AlgonautsDataset(Dataset):
         avgLh, avgRh = self.lhAvgFMRI[idx], self.rhAvgFMRI[idx]
         return image, imagePath, torch.tensor(lh, dtype=torch.float32), torch.tensor(rh, dtype=torch.float32), torch.tensor(avgLh, dtype=torch.float32), torch.tensor(avgRh, dtype=torch.float32)
 
-
+#Not using
+#dataset with just image and corresponding labels
 class COCOImgWithLabel(Dataset):
     def __init__(self, parentDir: str, metaDataDir: str, subj: int, idxs: list = None, tsfms = None):
         self.tsfms = tsfms        
@@ -148,6 +153,8 @@ class COCOImgWithLabel(Dataset):
             img = self.tsfms(img)
         return img, torch.tensor(self.labelEncoder.transform([label]), dtype=torch.long).squeeze()
 
+#Not using
+#Creates a balanced dataset (same number of images for each category) from all the training images from all subjects
 class BalancedCocoSuperClassDataset(Dataset):
     def __init__(self, parentDir: str, metaDataDir: str, idxs: list = None, tsfms = None):
         superClasses = ['accessory', 'animal', 'appliance', 'electronic', 'food',
@@ -171,8 +178,4 @@ class BalancedCocoSuperClassDataset(Dataset):
             img = self.tsfms(img)
         return img, torch.tensor(self.labelEncoder.transform([label]), dtype=torch.long).squeeze()
 
-# testImg, testLabel = trainingDataset.__getitem__(0)
-# testImg = testImg.to(device)
-# model(testImg[None, :, :, :])
-# torch.argmax(model(testImg[None, :, :, :]))
     
