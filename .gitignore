@@ -6,5 +6,4 @@ gradCam/__pycache__/datasets.cpython-311.pyc
 gradCam/cocoVGGModel.pth
 gradCam/cocoVGGModelMeDumb76.pth
 gradCam/yoloTest.ipynb
-gradCam/savedModels/5FoldBestModel.pth
-gradCam/savedModels/cocoVGGModel.pth
+gradCam/savedModels/
