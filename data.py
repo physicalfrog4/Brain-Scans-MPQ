@@ -1,6 +1,5 @@
 import os
 import random
-
 import pandas as pd
 import torchvision.transforms as transforms
 import numpy as np
@@ -25,7 +24,6 @@ def splitdata(train_img_list, test_img_list, train_img_dir):
 
     # No need to shuffle or split the test stimulus images
     idxs_test = np.arange(len(test_img_list))
-    # print("idx_val\n", idxs_val)
 
     val_img_list = []
     for i in idxs_train:
@@ -77,120 +75,77 @@ class ImageDataset(Dataset):
         # Load the image
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
-        # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
         if self.transform:
             img = self.transform(img).to('cuda:1')
         return img
 
 
 def normalize_fmri_data(data):
-    # Shift the data so that the minimum value becomes zero
-    min_value = np.min(data)
-    shifted_data = data - min_value
+    clip_percentile = 0.05
+    # Clip extreme values to handle outliers
+    min_clip = np.percentile(data, clip_percentile)
+    max_clip = np.percentile(data, 100 - clip_percentile)
+    clipped_data = np.clip(data, min_clip, max_clip)
 
-    # Scale the data to the range [0, 1]
-    max_value = np.max(shifted_data)
+    # Scale the clipped data to the range [0, 1]
+    min_value = np.min(clipped_data)
+    max_value = np.max(clipped_data)
     print(min_value, max_value)
 
-    if max_value == 0:
-        # Handle the case where all values are zero to avoid division by zero
-        normalized_data = shifted_data
+    if max_value == min_value:
+        normalized_data = np.zeros_like(clipped_data)
     else:
-        normalized_data = shifted_data / max_value
+        normalized_data = (clipped_data - min_value) / (max_value - min_value)
 
-    return normalized_data
-    # min_value = np.min(data)
-    # max_value = np.max(data)
-    # normalized_data = (data - min_value) / (max_value - min_value)
-    # return normalized_data
+    return normalized_data, min_value, max_value
+
+
+def unnormalize_fmri_data(normalized_data, min_value, max_value, clip_percentile=0.05):
+    # Reverse the normalization process
+    unnormalized_data = normalized_data * (max_value - min_value) + min_value
+
+    # Clip extreme values to handle outliers
+    min_clip = np.percentile(unnormalized_data, clip_percentile)
+    max_clip = np.percentile(unnormalized_data, 100 - clip_percentile)
+    unnormalized_data = np.clip(unnormalized_data, min_clip, max_clip)
+
+    return unnormalized_data
 
 
 def makeList(train_img_dir, train_img_list, idxs_val):
     val_img_list = []
     for i in idxs_val:
-        # print(i)
         img_dir = os.path.join(train_img_dir, train_img_list[i])
-        # train_img = Image.open(img_dir).convert('RGB')
-        # print(train_img)
         val_img_list.append(img_dir)
-    # print("Make List\n", val_img_list)
+
     return val_img_list
 
 
-def createDataFrame(idxs, fmri):
-    df1 = pd.DataFrame(idxs, columns=['Num'])
-    df2 = pd.DataFrame(fmri)
-    df = pd.concat([df1, df2], axis=1)
-    df_final = pd.DataFrame(df)
-    print(df_final)
-    return df_final
+def organize_input(classifications, image_data, fmri_data):
+    results = []
+    fmri = []
+    index = 0
 
+    for j in enumerate(classifications):
+        # Image NUM
+        arr = []
+        arr.append((j[1][0]))
+        arr.append((j[1][1]))
+        arr = list(arr)
+        # print(arr)
 
-def dfROI(args, hemi, idxs, lh_fmri, rh_fmri):
-    hemisphere = hemi
-    # hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
-    roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
+        # Image Data
+        arr0 = (np.array(image_data[index])).tolist()
+        # print(arr0)
+        new_list = arr + arr0
+        results.append(new_list)
 
-    # Load the image
-    data = []
-    for img in idxs:
+        # FMRI Data
+        fmri.append(np.array(fmri_data[index]))
+        index = index + 1
+    df = pd.DataFrame(results)
+    df1 = pd.DataFrame(fmri)
 
-        if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
-            roi_class = 'prf-visualrois'
-        elif roi in ["EBA", "FBA-1", "FBA-2", "mTL-bodies"]:
-            roi_class = 'floc-bodies'
-        elif roi in ["OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces"]:
-            roi_class = 'floc-faces'
-        elif roi in ["OPA", "PPA", "RSC"]:
-            roi_class = 'floc-places'
-        elif roi in ["OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words"]:
-            roi_class = 'floc-words'
-        elif roi in ["early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]:
-            roi_class = 'streams'
-
-        # Load the ROI brain surface maps
-        challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
-                                               hemisphere[0] + 'h.' + roi_class + '_challenge_space.npy')
-        fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
-                                               hemisphere[0] + 'h.' + roi_class + '_fsaverage_space.npy')
-        roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
-                                   'mapping_' + roi_class + '.npy')
-
-        challenge_roi_class = np.load(challenge_roi_class_dir)
-        fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
-        roi_map = np.load(roi_map_dir, allow_pickle=True).item()
-
-        # Select the vertices corresponding to the ROI of interest
-        roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
-        challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int)
-        fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
-
-        # Map the fMRI data onto the brain surface map
-        fsaverage_response = np.zeros(len(fsaverage_roi))
-        if hemisphere == 'left':
-            fsaverage_response[np.where(fsaverage_roi)[0]] = \
-                lh_fmri[img, np.where(challenge_roi)[0]]
-            val = (lh_fmri[img, np.where(challenge_roi)[0]].tolist())
-            # print(val)
-            data.append(val)
-            # print(len(val))
-        elif hemisphere == 'right':
-            fsaverage_response[np.where(fsaverage_roi)[0]] = \
-                rh_fmri[img, np.where(challenge_roi)[0]]
-            val = (rh_fmri[img, np.where(challenge_roi)[0]].tolist())
-            data.append(val)
-    df = pd.DataFrame(data)
     print(df)
-    return df
-
-
-def makeList(train_img_dir, train_img_list, idxs_val):
-    val_img_list = []
-    for i in idxs_val:
-        # print(i)
-        img_dir = os.path.join(train_img_dir, train_img_list[i])
-        train_img = Image.open(img_dir).convert('RGB')
-        # print(train_img)
-        val_img_list.append(img_dir)
-    # print("Make List\n", val_img_list)
-    return val_img_list
+    print(df1)
+    return df, df1

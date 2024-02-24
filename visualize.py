@@ -3,7 +3,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from nilearn import datasets, plotting
 from PIL import Image
-import LEM
 
 
 def plotAllVertices(args):
@@ -29,8 +28,10 @@ def plotAllVertices(args):
 
 
 def plotROI(args, hemisphere, roi):
-    # hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
-    # roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
+    # hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true} roi = "EBA"  # @param ["V1v", "V1d", "V2v",
+    # "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces",
+    # "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral",
+    # "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
 
     # Define the ROI class based on the selected ROI
     if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
@@ -80,11 +81,6 @@ def plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri):
     img_dir = os.path.join(train_img_dir, train_img_list[img])
     train_img = Image.open(img_dir).convert('RGB')
 
-    # Plot the image
-    plt.figure()
-    plt.axis('off')
-    plt.imshow(train_img)
-    plt.title('Training image: ' + str(img + 1));
 
     # Load the brain surface map of all vertices
     roi_dir = os.path.join(args.data_dir, 'roi_masks',
@@ -113,19 +109,22 @@ def plotFMRIfromIMG(args, train_img_dir, train_img_list, lh_fmri, rh_fmri):
 
 
 def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri, roi, img, hemisphere):
-    # img = 0  # @param
-    # hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
-    # roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
+    img = 0  # @param
+    hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
+    roi = "EBA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies",
+    # "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2",
+    # "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]
+    # {allow-input: true}
 
     # Load the image
     img_dir = os.path.join(train_img_dir, train_img_list[img])
     train_img = Image.open(img_dir).convert('RGB')
 
     # Plot the image
-    # plt.figure()
-    # plt.axis('off')
-    # plt.imshow(train_img)
-    # plt.title('Training image: ' + str(img + 1));
+    plt.figure()
+    plt.axis('off')
+    plt.imshow(train_img)
+    plt.title('Training image: ' + str(img + 1));
 
     if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
         roi_class = 'prf-visualrois'
@@ -176,24 +175,30 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
         colorbar=True,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    # plotting.show()
+    plotting.show()
 
 
 # this doesnt work
-def anotherOne(args, lh_correlation, rh_correlation):
+def plot_predictions(args, lh_correlation, rh_correlation):
     hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
+    roiList = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies",
+               "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2",
+               "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral",
+               "parietal"]
 
-    # Load the brain surface map of all vertices
+
     roi_dir = os.path.join(args.data_dir, 'roi_masks',
                            hemisphere[0] + 'h.all-vertices_fsaverage_space.npy')
     fsaverage_all_vertices = np.load(roi_dir)
 
-    # Map the correlation results onto the brain surface map
+
     fsaverage_correlation = np.zeros(len(fsaverage_all_vertices))
     if hemisphere == 'left':
         fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = lh_correlation
+        print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
     elif hemisphere == 'right':
         fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = rh_correlation
+        print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
 
     # Create the interactive brain surface map
     fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
@@ -206,10 +211,11 @@ def anotherOne(args, lh_correlation, rh_correlation):
         colorbar=True,
         title='Encoding accuracy, ' + hemisphere + ' hemisphere'
     )
-    plotting.show()
+
 
 
 def AccuracyROI(args, lh_correlation, rh_correlation):
+    print("visualize")
     # Load the ROI classes mapping dictionaries
     roi_mapping_files = ['mapping_prf-visualrois.npy', 'mapping_floc-bodies.npy',
                          'mapping_floc-faces.npy', 'mapping_floc-places.npy',
@@ -248,9 +254,13 @@ def AccuracyROI(args, lh_correlation, rh_correlation):
                 rh_roi_idx = np.where(rh_challenge_rois[r1] == r2[0])[0]
                 lh_roi_correlation.append(lh_correlation[lh_roi_idx])
                 rh_roi_correlation.append(rh_correlation[rh_roi_idx])
+                #print(r2, lh_correlation[lh_roi_idx])
+                #print(r2, rh_correlation[rh_roi_idx])
+
+
     roi_names.append('All vertices')
-    print(sum(lh_correlation)/len(lh_correlation))
-    print(sum(rh_correlation)/len(rh_correlation))
+    print(sum(lh_correlation) / len(lh_correlation))
+    print(sum(rh_correlation) / len(rh_correlation))
 
     lh_roi_correlation.append(lh_correlation)
     rh_roi_correlation.append(rh_correlation)
@@ -260,6 +270,7 @@ def AccuracyROI(args, lh_correlation, rh_correlation):
                                for r in range(len(lh_roi_correlation))]
     rh_mean_roi_correlation = [np.mean(rh_roi_correlation[r])
                                for r in range(len(rh_roi_correlation))]
+    print(lh_mean_roi_correlation, rh_mean_roi_correlation)
     plt.figure(figsize=(18, 6))
     x = np.arange(len(roi_names))
     width = 0.30
@@ -271,5 +282,128 @@ def AccuracyROI(args, lh_correlation, rh_correlation):
     plt.xlabel('ROIs')
     plt.xticks(ticks=x, labels=roi_names, rotation=60)
     plt.ylabel('Mean Pearson\'s $r$')
-    plt.legend(frameon=True, loc=1);
+    plt.legend(frameon=True, loc=1)
+    #plotting.show()
+
+
+def plotFMRI_ROI_IMG(args, lh_fmri, rh_fmri):
+    img = 0  # @param
+    hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
+    roi = "parietal"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"] {allow-input: true}
+
+    # Load the image
+    img_dir = 'subj01/training_split/training_images/train-0001_nsd-00013.png'
+    train_img = Image.open(img_dir).convert('RGB')
+
+    # Plot the image
+    plt.figure()
+    plt.axis('off')
+    plt.imshow(train_img)
+    plt.title('Training image: ' + str(img + 1));
+
+    if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
+        roi_class = 'prf-visualrois'
+    elif roi in ["EBA", "FBA-1", "FBA-2", "mTL-bodies"]:
+        roi_class = 'floc-bodies'
+    elif roi in ["OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces"]:
+        roi_class = 'floc-faces'
+    elif roi in ["OPA", "PPA", "RSC"]:
+        roi_class = 'floc-places'
+    elif roi in ["OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words"]:
+        roi_class = 'floc-words'
+    elif roi in ["early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]:
+        roi_class = 'streams'
+
+    # Load the ROI brain surface maps
+    challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
+                                           hemisphere[0] + 'h.' + roi_class + '_challenge_space.npy')
+    fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
+                                           hemisphere[0] + 'h.' + roi_class + '_fsaverage_space.npy')
+    roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
+                               'mapping_' + roi_class + '.npy')
+    challenge_roi_class = np.load(challenge_roi_class_dir)
+    fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
+    roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+
+    # Select the vertices corresponding to the ROI of interest
+    roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
+    challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int)
+    fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
+
+    # Map the fMRI data onto the brain surface map
+    fsaverage_response = np.zeros(len(fsaverage_roi))
+    if hemisphere == 'left':
+        fsaverage_response[np.where(fsaverage_roi)[0]] = \
+            lh_fmri[img, np.where(challenge_roi)[0]]
+    elif hemisphere == 'right':
+        fsaverage_response[np.where(fsaverage_roi)[0]] = \
+            rh_fmri[img, np.where(challenge_roi)[0]]
+
+    # Create the interactive brain surface map
+    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
+    view = plotting.plot_surf(
+        surf_mesh=fsaverage['infl_' + hemisphere],
+        surf_map=fsaverage_response,
+        bg_map=fsaverage['sulc_' + hemisphere],
+        threshold=1e-14,
+        cmap='cold_hot',
+        colorbar=True,
+        title=roi + ', ' + hemisphere + ' hemisphere'
+    )
     plotting.show()
+
+
+def ROI_IMG(args, lh_fmri, rh_fmri):
+    img = 0  # @param
+    hemisphere = 'right'  # @param ['left', 'right'] {allow-input: true}
+    roi = "parietal"
+    rois = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1",
+            "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words",
+            "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]
+
+    # Load the image
+    img_dir = 'subj01/training_split/training_images/train-0001_nsd-00013.png'
+    train_img = Image.open(img_dir).convert('RGB')
+    for roi in rois:
+        if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
+            roi_class = 'prf-visualrois'
+        elif roi in ["EBA", "FBA-1", "FBA-2", "mTL-bodies"]:
+            roi_class = 'floc-bodies'
+        elif roi in ["OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces"]:
+            roi_class = 'floc-faces'
+        elif roi in ["OPA", "PPA", "RSC"]:
+            roi_class = 'floc-places'
+        elif roi in ["OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words"]:
+            roi_class = 'floc-words'
+        elif roi in ["early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]:
+            roi_class = 'streams'
+
+        # Load the ROI brain surface maps
+        challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
+                                               hemisphere[0] + 'h.' + roi_class + '_challenge_space.npy')
+        fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
+                                               hemisphere[0] + 'h.' + roi_class + '_fsaverage_space.npy')
+        roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
+                                   'mapping_' + roi_class + '.npy')
+        challenge_roi_class = np.load(challenge_roi_class_dir)
+        fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
+        roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+
+        # Select the vertices corresponding to the ROI of interest
+        roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
+        challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int)
+        fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
+
+        # Map the fMRI data onto the brain surface map
+        fsaverage_response = np.zeros(len(fsaverage_roi))
+        if hemisphere == 'left':
+            fsaverage_response[np.where(fsaverage_roi)[0]] = \
+                lh_fmri[img, np.where(challenge_roi)[0]]
+            #print(fsaverage_response[np.where(fsaverage_roi)[0]])
+            #print(fsaverage_response.sum()/fsaverage_response.__len__())
+        elif hemisphere == 'right':
+            fsaverage_response[np.where(fsaverage_roi)[0]] = \
+                rh_fmri[img, np.where(challenge_roi)[0]]
+            #print(fsaverage_response[np.where(fsaverage_roi)[0]])
+            #print(fsaverage_response.sum() / fsaverage_response.__len__())
+

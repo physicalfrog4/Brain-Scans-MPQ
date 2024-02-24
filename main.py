@@ -1,31 +1,37 @@
 import os
 import numpy as np
-import pandas as pd
 import torch
+from nilearn import plotting
 import data
-from words import makeClassifications, makePredictions
-from data import normalize_fmri_data
+import visualize
+from words import make_classifications, Predictions
+from data import normalize_fmri_data, unnormalize_fmri_data
 from LEM import extract_data_features, predAccuracy
 
 
 
 def main():
-    if platform == 'jupyter_notebook':
-        data_dir = '../MQP/algonauts_2023_challenge_data/'
-        parent_submission_dir = 'C:\GitHub\Brain-Scans-MQP\submissiondir'
-    subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
+    # setting up the directories and ARGS
+    data_dir = '../MQP/algonauts_2023_challenge_data/'
+    parent_submission_dir = '../submission'
+    subj = 5  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
     # args
     args = argObj(data_dir, parent_submission_dir, subj)
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
-    batch_size = 100
+
+    words = ['furniture', 'food', 'kitchenware', 'appliance', 'person', 'animal', 'vehicle', 'accessory',
+             'electronics', 'sports', 'traffic', 'outdoor', 'home', 'clothing', 'hygiene', 'toy', 'plumbing',
+             'safety', 'luggage', 'computer', 'fruit', 'vegetable', 'tool']
+
     print("________ Process Data ________")
+
     # Normalize Data Before Split
-    lh_fmri = normalize_fmri_data(lh_fmri)
+    lh_fmri, lh_data_min, lh_data_max = normalize_fmri_data(lh_fmri)
     print(lh_fmri)
     print("- - - - - - - -")
-    rh_fmri = normalize_fmri_data(rh_fmri)
+    rh_fmri, rh_data_min, rh_data_max = normalize_fmri_data(rh_fmri)
     print(rh_fmri)
 
     print('LH training fMRI data shape:')
@@ -36,20 +42,13 @@ def main():
     print(rh_fmri.shape)
     print('(Training stimulus images × RH vertices)')
 
-    hemisphere = 'left'  # @param ['left', 'right'] {allow-input: true}
-    roi = "OPA"  # @param ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies",
-    # "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2",
-    # "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]
-    # {allow-input: true}
-
     train_img_dir = os.path.join(args.data_dir, 'training_split', 'training_images')
     test_img_dir = os.path.join(args.data_dir, 'test_split', 'test_images')
-
-    # Create lists will all training and test image file names, sorted
     train_img_list = os.listdir(train_img_dir)
     train_img_list.sort()
     test_img_list = os.listdir(test_img_dir)
     test_img_list.sort()
+
     print('\nTraining images: ' + str(len(train_img_list)))
     print('\nTest images: ' + str(len(test_img_list)))
     train_img_file = train_img_list[0]
@@ -59,71 +58,99 @@ def main():
     print("________ Split Data ________")
 
     idxs_train, idxs_val, idxs_test = data.splitdata(train_img_list, test_img_list, train_img_dir)
-
     lh_fmri_train = lh_fmri[idxs_train]
     rh_fmri_train = rh_fmri[idxs_train]
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_val = rh_fmri[idxs_val]
 
-    print("________ Create Dataframe For ROI ________")
+    print("________ Make Lists ________")
 
-    lh_train_ROI = data.dfROI(args, 'left', idxs_train, lh_fmri, rh_fmri)
-    lh_val_ROI = data.dfROI(args, 'left', idxs_val, lh_fmri, rh_fmri)
-    lh_test_ROI = data.dfROI(args, 'left', idxs_test, lh_fmri, rh_fmri)
-
-    rh_train_ROI = data.dfROI(args, 'right', idxs_train, lh_fmri, rh_fmri)
-    rh_val_ROI = data.dfROI(args, 'right', idxs_val, lh_fmri, rh_fmri)
-    rh_test_ROI = data.dfROI(args, 'right', idxs_test, lh_fmri, rh_fmri)
-
-    print("________ Create Dataframe for All Regions ________")
-
-    df_lh_train = data.createDataFrame(idxs_train, lh_fmri_train)
-    df_lh_val = data.createDataFrame(idxs_val, lh_fmri_val)
-    df_rh_train = data.createDataFrame(idxs_train, rh_fmri_train)
-    df_rh_val = data.createDataFrame(idxs_val, rh_fmri_val)
+    train_images = data.makeList(train_img_dir, train_img_list, idxs_train)
+    val_images = data.makeList(train_img_dir, train_img_list, idxs_val)
+    test_images = data.makeList(test_img_dir, test_img_list, idxs_test)
     torch.cuda.empty_cache()
 
     print("________ Make Classifications ________")
-    lh_classifications_val = makeClassifications(idxs_val, train_img_list, train_img_dir)
+
+    lh_classifications_val = make_classifications(val_images, idxs_val, device)
     rh_classifications_val = lh_classifications_val
-    lh_classifications = makeClassifications(idxs_train, train_img_list, train_img_dir)
+    lh_classifications = make_classifications(train_images, idxs_train, device)
     rh_classifications = lh_classifications
     torch.cuda.empty_cache()
 
     print("________ Extract Image Features ________")
 
     train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader = (
-        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 100))
-
-    # Model for Images
-    model_img = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    model_img.to('cuda:1')  # send the model to the chosen device ('cpu' or 'cuda')
-
+        data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 64))
 
     features_train, features_val, features_test = (
-        extract_data_features(model_img, train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 50))
-    del model_img
+        extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 64))
 
-    print("________ Combine Data ________")
-    lh_train_input = np.concatenate([lh_classifications, features_train], axis=1)
-    rh_train_input = np.concatenate([rh_classifications, features_train], axis=1)
-    lh_val_input = np.concatenate([lh_classifications_val, features_val], axis=1)
-    rh_val_input = np.concatenate([rh_classifications_val, features_val], axis=1)
+    print("________ LEARN MORE ________")
+
+    dftrainL, dftrainFL = data.organize_input(lh_classifications, features_train, lh_fmri_train)
+    dfvalL, dfvalFL = data.organize_input(lh_classifications_val, features_val, lh_fmri_val)
+    dftrainR, dftrainFR = data.organize_input(rh_classifications, features_train, rh_fmri_train)
+    dfvalR, dfvalFR = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
+
+    print("________ Predictions ________")
+
+    lh_fmri_val_pred = Predictions(dftrainL, dftrainFL, dfvalL, dfvalFL)
+    rh_fmri_val_pred = Predictions(dftrainR, dftrainFR, dfvalR, dfvalFR)
 
     print("________ Make Predictions ________")
 
-    lh_fmri_val_pred = makePredictions(lh_train_input, lh_fmri_train, lh_val_input, lh_fmri_val)
-    rh_fmri_val_pred = makePredictions(rh_train_input, rh_fmri_train, rh_val_input, rh_fmri_val)
+    lh_fmri_val_pred = unnormalize_fmri_data(lh_fmri_val_pred, lh_data_min, lh_data_max)
+    rh_fmri_val_pred = unnormalize_fmri_data(rh_fmri_val_pred, rh_data_min, rh_data_max)
 
-    lh_avg = np.average(lh_fmri_val_pred - lh_fmri_val)
-    rh_avg = np.average(rh_fmri_val_pred - rh_fmri_val)
+    print("________ Re-Load Data ________")
+    lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
+    rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 
-    print("LH AVG ", lh_avg)
-    print("RH AVG ", rh_avg)
+    lh_fmri_val = lh_fmri[idxs_val]
+    rh_fmri_val = rh_fmri[idxs_val]
 
-    predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+    print("________ Prediction Accuracy ________")
 
-    print("________ End ________")
+    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+
+    print("________ Visualize Each Class ________")
+
+    length = len(words)
+    for clss in range(length):
+        avg_lh_pred = []
+        avg_lh_real = []
+        avg_rh_pred = []
+        avg_rh_real = []
+        for i in range(len(lh_classifications_val)):
+
+            if lh_classifications_val[i][1] == clss:
+                avg_lh_pred.append(lh_fmri_val_pred[i])
+                avg_lh_real.append(lh_fmri_val[i])
+
+            if rh_classifications[i][1] == clss:
+                avg_rh_pred.append(rh_fmri_val_pred[i])
+                avg_rh_real.append(lh_fmri_val[i])
+
+        lh = np.mean(avg_lh_pred, axis=0)
+        rh = np.mean(avg_rh_pred, axis=0)
+
+        print("MEAN PRED LH:\n", lh)
+        print("MEAN PRED RH:\n", rh)
+        visualize.plot_predictions(args, lh, rh)
+        lh2 = np.mean(avg_lh_real, axis=0)
+        rh2 = np.mean(avg_rh_real, axis=0)
+
+        print("MEAN REAL LH:\n", lh2)
+        print("MEAN REAL RH:\n", rh2)
+        visualize.plot_predictions(args, lh2, rh2)
+        plotting.show()
+
+        corr = np.corrcoef(avg_lh_pred, avg_lh_real)
+        print("Corre ", np.mean(corr))
+        torch.cuda.empty_cache()
+
+    print("________ END ________")
 
 
 class argObj:
@@ -134,14 +161,9 @@ class argObj:
         self.subject_submission_dir = os.path.join(self.parent_submission_dir,
                                                    'subj' + self.subj)
 
-        # Create the submission directory if not existing
-        # if not os.path.isdir(self.subject_submission_dir):
-        # os.makedirs(self.subject_submission_dir)
-
 
 if __name__ == "__main__":
-    platform = 'jupyter_notebook'  # @param ['colab', 'jupyter_notebook'] {allow-input: true}
-    device = 'cuda'  # @param ['cpu', 'cuda'] {allow-input: true}
+    platform = 'jupyter_notebook'
+    device = 'cuda:0'
     device = torch.device(device)
-
     main()
