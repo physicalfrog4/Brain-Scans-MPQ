@@ -11,20 +11,15 @@ from PIL import Image
 def splitdata(train_img_list, test_img_list, train_img_dir):
     rand_seed = random.randint(0, 100)
     np.random.seed(rand_seed)
-
     # Calculate how many stimulus images correspond to 90% of the training data
     num_train = int(np.round(len(train_img_list) / 100 * 90))
-
     # Shuffle all training stimulus images
     idxs = np.arange(len(train_img_list))
     np.random.shuffle(idxs)
-
     # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
     idxs_train, idxs_val = idxs[:num_train], idxs[num_train:]
-
     # No need to shuffle or split the test stimulus images
     idxs_test = np.arange(len(test_img_list))
-
     val_img_list = []
     for i in idxs_train:
         img_dir = os.path.join(train_img_dir, train_img_list[i])
@@ -46,7 +41,6 @@ def transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 
     # Get the paths of all image files
     train_imgs_paths = sorted(list(Path(train_img_dir).iterdir()))
     test_imgs_paths = sorted(list(Path(test_img_dir).iterdir()))
-
     # The DataLoaders contain the ImageDataset class
     train_imgs_dataloader = DataLoader(
         ImageDataset(train_imgs_paths, idxs_train, transform),
@@ -67,17 +61,15 @@ class ImageDataset(Dataset):
     def __init__(self, imgs_paths, idxs, transform):
         self.imgs_paths = np.array(imgs_paths)[idxs]
         self.transform = transform
-
     def __len__(self):
         return len(self.imgs_paths)
-
     def __getitem__(self, idx):
         # Load the image
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
         if self.transform:
             img = self.transform(img).to('cuda:1')
-        return img
+        return img, self.imgs_paths[idx]
 
 
 def normalize_fmri_data(data):
@@ -86,24 +78,20 @@ def normalize_fmri_data(data):
     min_clip = np.percentile(data, clip_percentile)
     max_clip = np.percentile(data, 100 - clip_percentile)
     clipped_data = np.clip(data, min_clip, max_clip)
-
     # Scale the clipped data to the range [0, 1]
     min_value = np.min(clipped_data)
     max_value = np.max(clipped_data)
     print(min_value, max_value)
-
     if max_value == min_value:
         normalized_data = np.zeros_like(clipped_data)
     else:
         normalized_data = (clipped_data - min_value) / (max_value - min_value)
-
     return normalized_data, min_value, max_value
 
 
 def unnormalize_fmri_data(normalized_data, min_value, max_value, clip_percentile=0.05):
     # Reverse the normalization process
     unnormalized_data = normalized_data * (max_value - min_value) + min_value
-
     # Clip extreme values to handle outliers
     min_clip = np.percentile(unnormalized_data, clip_percentile)
     max_clip = np.percentile(unnormalized_data, 100 - clip_percentile)
@@ -117,7 +105,6 @@ def makeList(train_img_dir, train_img_list, idxs_val):
     for i in idxs_val:
         img_dir = os.path.join(train_img_dir, train_img_list[i])
         val_img_list.append(img_dir)
-
     return val_img_list
 
 
@@ -125,7 +112,6 @@ def organize_input(classifications, image_data, fmri_data):
     results = []
     fmri = []
     index = 0
-
     for j in enumerate(classifications):
         # Image NUM
         arr = []
@@ -133,19 +119,16 @@ def organize_input(classifications, image_data, fmri_data):
         arr.append((j[1][1]))
         arr = list(arr)
         # print(arr)
-
         # Image Data
         arr0 = (np.array(image_data[index])).tolist()
         # print(arr0)
         new_list = arr + arr0
         results.append(new_list)
-
         # FMRI Data
         fmri.append(np.array(fmri_data[index]))
         index = index + 1
     df = pd.DataFrame(results)
     df1 = pd.DataFrame(fmri)
-
     print(df)
     print(df1)
     return df, df1
