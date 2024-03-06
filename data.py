@@ -78,7 +78,7 @@ class ImageDataset(Dataset):
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
         if self.transform:
-            img = self.transform(img).to('cpu')
+            img = self.transform(img).to('cuda:0')
         return img
 
 
