@@ -5,8 +5,9 @@ from nilearn import plotting
 import data
 import visualize
 from words import make_classifications, Predictions
-from data import normalize_fmri_data, unnormalize_fmri_data
+from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results
 from LEM import extract_data_features, predAccuracy
+from numpy.linalg import norm
 
 
 
@@ -14,8 +15,8 @@ def main():
     # setting up the directories and ARGS
     data_dir = '../MQP/algonauts_2023_challenge_data/'
     parent_submission_dir = '../submission'
-    subj = 5  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
-    # args
+    subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
+
     args = argObj(data_dir, parent_submission_dir, subj)
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
@@ -29,10 +30,7 @@ def main():
 
     # Normalize Data Before Split
     lh_fmri, lh_data_min, lh_data_max = normalize_fmri_data(lh_fmri)
-    print(lh_fmri)
-    print("- - - - - - - -")
     rh_fmri, rh_data_min, rh_data_max = normalize_fmri_data(rh_fmri)
-    print(rh_fmri)
 
     print('LH training fMRI data shape:')
     print(lh_fmri.shape)
@@ -51,9 +49,6 @@ def main():
 
     print('\nTraining images: ' + str(len(train_img_list)))
     print('\nTest images: ' + str(len(test_img_list)))
-    train_img_file = train_img_list[0]
-    print('\nTraining image file name: ' + train_img_file)
-    print('\n73k NSD images ID: ' + train_img_file[-9:-4])
 
     print("________ Split Data ________")
 
@@ -72,10 +67,11 @@ def main():
 
     print("________ Make Classifications ________")
 
-    lh_classifications_val = make_classifications(val_images, idxs_val, device)
-    rh_classifications_val = lh_classifications_val
     lh_classifications = make_classifications(train_images, idxs_train, device)
     rh_classifications = lh_classifications
+    lh_classifications_val = make_classifications(val_images, idxs_val, device)
+    rh_classifications_val = lh_classifications_val
+
     torch.cuda.empty_cache()
 
     print("________ Extract Image Features ________")
@@ -88,15 +84,21 @@ def main():
 
     print("________ LEARN MORE ________")
 
-    dftrainL, dftrainFL = data.organize_input(lh_classifications, features_train, lh_fmri_train)
-    dfvalL, dfvalFL = data.organize_input(lh_classifications_val, features_val, lh_fmri_val)
-    dftrainR, dftrainFR = data.organize_input(rh_classifications, features_train, rh_fmri_train)
-    dfvalR, dfvalFR = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
+    LH_train_class, LH_train_FMRI = data.organize_input(lh_classifications, features_train, lh_fmri_train)
+    LH_val_class, LH_val_FMRI = data.organize_input(lh_classifications_val, features_val, lh_fmri_val)
+    RH_train_class, RH_train_FMRI = data.organize_input(rh_classifications, features_train, rh_fmri_train)
+    RH_val_class, RH_val_FMRI = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
 
     print("________ Predictions ________")
 
-    lh_fmri_val_pred = Predictions(dftrainL, dftrainFL, dfvalL, dfvalFL)
-    rh_fmri_val_pred = Predictions(dftrainR, dftrainFR, dfvalR, dfvalFR)
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LH_val_FMRI)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, RH_val_FMRI)
+
+    print("________ Analyze Results ________")
+
+    analyze_results(LH_val_FMRI, lh_fmri_val_pred)
+    analyze_results(RH_val_FMRI, rh_fmri_val_pred)
+
 
     print("________ Make Predictions ________")
 
@@ -131,24 +133,27 @@ def main():
             if rh_classifications[i][1] == clss:
                 avg_rh_pred.append(rh_fmri_val_pred[i])
                 avg_rh_real.append(lh_fmri_val[i])
-
-        lh = np.mean(avg_lh_pred, axis=0)
-        rh = np.mean(avg_rh_pred, axis=0)
-
-        print("MEAN PRED LH:\n", lh)
-        print("MEAN PRED RH:\n", rh)
-        visualize.plot_predictions(args, lh, rh)
-        lh2 = np.mean(avg_lh_real, axis=0)
-        rh2 = np.mean(avg_rh_real, axis=0)
-
-        print("MEAN REAL LH:\n", lh2)
-        print("MEAN REAL RH:\n", rh2)
-        visualize.plot_predictions(args, lh2, rh2)
-        plotting.show()
-
-        corr = np.corrcoef(avg_lh_pred, avg_lh_real)
-        print("Corre ", np.mean(corr))
-        torch.cuda.empty_cache()
+        # Only look at classes that are observed 
+        if(len(avg_lh_pred)== 0):
+            pass
+        else:
+            lh = np.mean(avg_lh_pred, axis=0)
+            rh = np.mean(avg_rh_pred, axis=0)
+            #print("MEAN PRED LH:\n", lh)
+            #print("MEAN PRED RH:\n", rh)
+            # visualize.plot_predictions(args, lh, rh)
+            lh2 = np.mean(avg_lh_real, axis=0)
+            rh2 = np.mean(avg_rh_real, axis=0)
+            #print("MEAN REAL LH:\n", lh2)
+            #print("MEAN REAL RH:\n", rh2)
+            # visualize.plot_predictions(args, lh2, rh2)
+            # plotting.show()
+            corr = np.corrcoef(avg_lh_pred, avg_lh_real)
+            print(len(avg_lh_pred))
+            print("Corre ", np.mean(corr))
+            cosine = np.dot(lh,lh2)/(norm(lh)*norm(lh2))
+            print("Cosine Similarity:", cosine)
+            torch.cuda.empty_cache()
 
     print("________ END ________")
 
