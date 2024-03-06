@@ -6,6 +6,8 @@ import numpy as np
 from pathlib import Path
 from torch.utils.data import DataLoader, Dataset
 from PIL import Image
+from numpy.linalg import norm
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 
 def splitdata(train_img_list, test_img_list, train_img_dir):
@@ -76,7 +78,7 @@ class ImageDataset(Dataset):
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
         if self.transform:
-            img = self.transform(img).to('cuda:1')
+            img = self.transform(img).to('cpu')
         return img
 
 
@@ -90,7 +92,7 @@ def normalize_fmri_data(data):
     # Scale the clipped data to the range [0, 1]
     min_value = np.min(clipped_data)
     max_value = np.max(clipped_data)
-    print(min_value, max_value)
+ 
 
     if max_value == min_value:
         normalized_data = np.zeros_like(clipped_data)
@@ -143,9 +145,15 @@ def organize_input(classifications, image_data, fmri_data):
         # FMRI Data
         fmri.append(np.array(fmri_data[index]))
         index = index + 1
-    df = pd.DataFrame(results)
-    df1 = pd.DataFrame(fmri)
 
-    print(df)
-    print(df1)
-    return df, df1
+    return results, fmri
+
+def analyze_results(val_fmri, val_pred):
+   
+    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", val_pred)
+    linear_regression_mse = mean_squared_error(val_fmri, val_pred)
+    print(f'Mean Squared Error: {linear_regression_mse}')
+    linear_regression_mae = mean_absolute_error(val_fmri, val_pred)
+    print(f'Mean Absolute Error: {linear_regression_mae}')
+    linear_cosine_similarity = np.dot(np.mean(val_fmri),np.mean(val_pred))/(norm(np.mean(val_fmri))*norm(np.mean(val_pred)))
+    print("Cosine Similarity:", linear_cosine_similarity)
