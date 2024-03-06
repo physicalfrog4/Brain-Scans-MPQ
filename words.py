@@ -5,11 +5,6 @@ from ultralytics import YOLO
 
 
 def Predictions(train, train_fmri, val, val_fmri):
-    print("PREDICTIONS")
-    train = train.to_numpy()
-    train_fmri = train_fmri.to_numpy()
-    val = val.to_numpy()
-    val_fmri = val_fmri.to_numpy()
 
     linear_regression_model = LinearRegression()
     linear_regression_model.fit(train, train_fmri)
@@ -24,7 +19,7 @@ def Predictions(train, train_fmri, val, val_fmri):
     return linear_regression_predictions
 
 
-def make_classifications(image_list, idxs, device, batch_size=300):
+def make_classifications(image_list, idxs, device, batch_size=100):
     modelYOLO = YOLO('yolov8n.pt')
     modelYOLO.to(device)
     results = []
@@ -40,7 +35,6 @@ def make_classifications(image_list, idxs, device, batch_size=300):
 
         image_results = modelYOLO.predict(batch_imgs, stream=True)
         names = modelYOLO.names
-        print(names)
 
         for i, result in enumerate(image_results):
             detection_count = result.boxes.shape[0]
@@ -72,7 +66,6 @@ def make_classifications(image_list, idxs, device, batch_size=300):
 
     df = pd.DataFrame(results)
     df = df.fillna(-1)
-    print(df)
     final = df.to_numpy()
 
     return final
