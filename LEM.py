@@ -10,6 +10,7 @@ from torchvision.models import vgg19
 
 def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size):
     vgg = vgg19(weights="DEFAULT")
+    vgg.to(device)
     vggConvFeatures = vgg.features[:35]
     train_nodes, _ = get_graph_node_names(vgg)
     model_layer = "avgpool"
