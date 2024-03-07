@@ -58,7 +58,6 @@ def main():
     train_img_dir = os.path.join(args.data_dir, 'training_split', 'training_images')
     test_img_dir = os.path.join(args.data_dir, 'test_split', 'test_images')
     train_img_list = os.listdir(train_img_dir)
-    train_img_list = train_img_list[:250]
     train_img_list.sort()
     test_img_list = os.listdir(test_img_dir)
     test_img_list.sort()
