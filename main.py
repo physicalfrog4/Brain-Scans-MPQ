@@ -6,7 +6,7 @@ from nilearn import plotting
 import data
 import visualize
 from words import make_classifications, Predictions
-from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results, cosine_similarity_manual
+from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results
 from LEM import extract_data_features, predAccuracy
 from visualize import plot_predictions
 from numpy.linalg import norm
