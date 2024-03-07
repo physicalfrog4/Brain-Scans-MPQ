@@ -4,17 +4,11 @@ from sklearn.metrics import mean_squared_error
 from ultralytics import YOLO
 
 
-def Predictions(train, train_fmri, val, val_fmri):
+def Predictions(train, train_fmri, val):
 
     linear_regression_model = LinearRegression()
     linear_regression_model.fit(train, train_fmri)
     linear_regression_predictions = linear_regression_model.predict(val)
-
-    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", linear_regression_predictions)
-    linear_regression_mse = mean_squared_error(val_fmri, linear_regression_predictions)
-    print(f'Random Forest Mean Squared Error: {linear_regression_mse}')
-    score = linear_regression_model.score(val, val_fmri)
-    print("accuracy score", score)
 
     return linear_regression_predictions
 
@@ -61,13 +55,11 @@ def make_classifications(image_list, idxs, device, batch_size=100):
             if best_item:
                 results.append([cls, num])
             else:
-
                 results.append([-1, -1])
 
     df = pd.DataFrame(results)
     df = df.fillna(-1)
     final = df.to_numpy()
-
     return final
 
 
