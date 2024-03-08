@@ -66,10 +66,13 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         # Load the image
         img_path = self.imgs_paths[idx]
+        # print(type(img_path))
+        # print(img_path)
+        # print(str(img_path))
         img = Image.open(img_path).convert('RGB')
         if self.transform:
             img = self.transform(img).to('cuda:1')
-        return img, self.imgs_paths[idx]
+        return img, str(self.imgs_paths[idx])
 
 
 def normalize_fmri_data(data):
@@ -96,7 +99,6 @@ def unnormalize_fmri_data(normalized_data, min_value, max_value, clip_percentile
     min_clip = np.percentile(unnormalized_data, clip_percentile)
     max_clip = np.percentile(unnormalized_data, 100 - clip_percentile)
     unnormalized_data = np.clip(unnormalized_data, min_clip, max_clip)
-
     return unnormalized_data
 
 
@@ -108,11 +110,12 @@ def makeList(train_img_dir, train_img_list, idxs_val):
     return val_img_list
 
 
-def organize_input(classifications, image_data, fmri_data):
+def organize_input(classifications, image_data, imagePaths, fmri_data):
     results = []
     fmri = []
     index = 0
     for j in enumerate(classifications):
+        # print(j)
         # Image NUM
         arr = []
         arr.append((j[1][0]))
@@ -123,7 +126,12 @@ def organize_input(classifications, image_data, fmri_data):
         arr0 = (np.array(image_data[index])).tolist()
         # print(arr0)
         new_list = arr + arr0
+        new_list.append(imagePaths[index])
         results.append(new_list)
+        # print("appending")
+        # print(new_list)
+        # print("path")
+        # print(imagePaths[index])
         # FMRI Data
         fmri.append(np.array(fmri_data[index]))
         index = index + 1

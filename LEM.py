@@ -18,7 +18,7 @@ def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_
     pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size)
     features_train, trainImagePaths = extract_features(feature_extractor, train_imgs_dataloader, pca)
     features_val, validImagePaths = extract_features(feature_extractor, val_imgs_dataloader, pca)
-    features_test, _ = extract_features(feature_extractor, test_imgs_dataloader, pca)
+    features_test, testImagePaths = extract_features(feature_extractor, test_imgs_dataloader, pca)
     print('\nTraining images features:')
     print(features_train.shape)
     print('(Training stimulus images × PCA features)')
@@ -29,7 +29,7 @@ def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_
     print(features_test.shape)
     print('(Test stimulus images × PCA features)')
     del pca
-    return features_train, trainImagePaths, features_val, validImagePaths, features_test
+    return features_train, trainImagePaths, features_val, validImagePaths, features_test, testImagePaths
 
 
 
@@ -64,7 +64,7 @@ def extract_features(feature_extractor, dataloader, pca):
         ft = pca.transform(ft.cpu().detach().numpy())
         # ft = pca.transform(ft.cuda().detach().numpy())
         features.append(ft)
-        imagePaths.append(d[1])
+        imagePaths.extend(d[1])
         val = np.vstack(features)
         # print(val)
     return np.vstack(features), imagePaths
@@ -76,6 +76,7 @@ def fit_pca(feature_extractor, dataloader, batch_size):
     pca = IncrementalPCA(batch_size=batch_size)
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader), desc="PCA"):
+        # print(d)
         # Extract features
         ft = feature_extractor(d[0])
         # Flatten the features

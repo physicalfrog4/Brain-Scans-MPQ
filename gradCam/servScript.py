@@ -335,61 +335,93 @@ def vggYoloTrain():
     numImages = len(getClassImages(parentDir, metaDataDir, subj, "person")[0])
     trainIdxs, validIdxs = train_test_split(range(numImages), train_size=0.9, random_state = 42)
 
-    trainingDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs=trainIdxs, tsfms = tsfms)
-    trainDataLoader = DataLoader(trainingDataset, batch_size = 64, shuffle = True)
-
-    validDataset = NSDDatasetClassSubset(parentDir, metaDataDir, subj, "person", idxs = validIdxs, tsfms = tsfms)
-    validDataLoader = DataLoader(validDataset, batch_size = 64, shuffle = True)
-
-    # numClasses = 12
-    numROIs = len(trainingDataset.lhROIs)
-    model = roiVGGYolo(numROIs, yoloTsfms).to(device)
+    trainingDataset = AlgonautsDataset(args.data_dir, args.subj, transform=tsfms)
+    lhNumROIs = len(trainingDataset.lhFMRI[0])
+    rhNumROIs = len(trainingDataset.rhFMRI[0])
+    trainSubset = Subset(trainingDataset, trainIdxs)
+    trainDataLoader = DataLoader(trainSubset, batch_size = 128, shuffle = True)
+    validSubset = Subset(trainingDataset, validIdxs)
+    validDataLoader = DataLoader(validSubset, batch_size = 128, shuffle = True)
+    #Create VGG and YOLO model
+    lhModel = roiVGGYolo(lhNumROIs, yoloTsfms).to(device)
+    rhModel = roiVGGYolo(rhNumROIs, yoloTsfms).to(device)
+    #Define optimzer params and loss function
     learningRate = 0.00001
-    optim = torch.optim.Adam(model.parameters(), learningRate, weight_decay=1e-5)#,  weight_decay=1e-4
-    scheduler = lr_scheduler.StepLR(optim, step_size=10, gamma=0.1)
+    lhOptim = torch.optim.Adam(lhModel.parameters(), learningRate)#,  weight_decay=1e-4
+    lhScheduler = lr_scheduler.StepLR(lhOptim, step_size=10, gamma=0.1)
+    rhOptim = torch.optim.Adam(rhModel.parameters(), learningRate)#,  weight_decay=1e-4
+    rhScheduler = lr_scheduler.StepLR(rhOptim, step_size=10, gamma=0.1)
     criterion = torch.nn.MSELoss()
-
-    epochs = 30
+    #Training for specified epochs
+    epochs = 15
     for epoch in range(epochs):
+        #Variables to hold information on training progress
         print(f"Epoch {epoch}")
-        avgTrainingLoss = 0
-        avgEvalLoss = 0
-        avgTrainingR2Score = 0
-        avgEvalR2Score = 0
-        for data in tqdm(trainDataLoader, desc="Training", unit="batch"):  # for data in trainDataLoader: #
-            img, imgPaths, _, _, avgFMRI, _ = data
+        avgLhTrainingLoss = 0
+        avgLhEvalLoss = 0
+        avgLhTrainingR2Score = 0
+        avgLhEvalR2Score = 0
+        avgRhTrainingLoss = 0
+        avgRhEvalLoss = 0
+        avgRhTrainingR2Score = 0
+        avgRhEvalR2Score = 0
+        for data in tqdm(trainDataLoader, desc="Training", unit="batch"): 
+            #Get data in batch
+            img, imgPaths, _, _, normalLhFMRI, normalRhFMRI = data
             img = img.to(device)
-            avgFMRI = avgFMRI.to(device)
-            optim.zero_grad()
-            # print("start")
-            # print(imgPaths)
-            # print("end")
-            pred, indices = model(img, imgPaths)
-            avgFMRI = avgFMRI[indices]
-            loss = criterion(pred, avgFMRI)
-            loss.backward()
-            optim.step()  
-            # numRight += (torch.argmax(pred, 1) == label).sum().item()
-            avgTrainingLoss += loss.item()
-            # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-            avgTrainingR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
-        # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-        # model.eval()
+            normalLhFMRI = normalLhFMRI.to(device)
+            normalRhFMRI = normalRhFMRI.to(device)
+            lhOptim.zero_grad()
+            rhOptim.zero_grad()
+            #make predictions
+            lhPred, lhIndices = lhModel(img, imgPaths)
+            rhPred, rhIndices = rhModel(img, imgPaths)
+            #only use data for images that had bounding box data
+            normalLhFMRI = normalLhFMRI[lhIndices]
+            normalRhFMRI = normalRhFMRI[rhIndices]
+            #evaluate based on loss function
+            lhLoss = criterion(lhPred, normalLhFMRI)
+            lhLoss.backward()
+            lhOptim.step()
+            rhLoss = criterion(rhPred, normalRhFMRI)
+            rhLoss.backward()
+            rhOptim.step()    
+            #sum r2 scores and loss values for batch
+            avgLhTrainingLoss += lhLoss.item()
+            avgLhTrainingR2Score += r2_score(lhPred.detach().cpu().numpy(), normalLhFMRI.detach().cpu().numpy())
+            avgRhTrainingLoss += rhLoss.item()
+            avgRhTrainingR2Score += r2_score(rhPred.detach().cpu().numpy(), normalRhFMRI.detach().cpu().numpy())
         with torch.no_grad():
             for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
-                img, imgPaths, _, _, avgFMRI, _ = data
+                #Get data in batch
+                img, imgPaths, _, _, normalLhFMRI, normalRhFMRI = data
                 img = img.to(device)
-                avgFMRI = avgFMRI.to(device)
-                pred, indices = model(img, imgPaths)
-                avgFMRI = avgFMRI[indices]
-                # print(f"pred shape {pred.shape} avgFMRI shape {avgFMRI.shape}")
-                evalLoss = criterion(pred, avgFMRI)
-                avgEvalLoss += evalLoss.item()
-                # print(r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy()))
-                avgEvalR2Score += r2_score(pred.detach().cpu().numpy(), avgFMRI.detach().cpu().numpy())
-        scheduler.step()
-        print(f"Epoch {epoch} using lr = {learningRate} TrainingMSE: {avgTrainingLoss / len(trainDataLoader)}, ValidMSE: {avgEvalLoss / len(validDataLoader)}, trainR2 = {avgTrainingR2Score / len(trainDataLoader)}, evalR2= {avgEvalR2Score / len(validDataLoader)}")
-
+                normalLhFMRI = normalLhFMRI.to(device)
+                normalRhFMRI = normalRhFMRI.to(device)
+                #make predictions
+                lhPred, lhIndices = lhModel(img, imgPaths)
+                rhPred, rhIndices = rhModel(img, imgPaths)
+                #only use data for images that had bounding box data
+                normalLhFMRI = normalLhFMRI[lhIndices]
+                normalRhFMRI = normalRhFMRI[rhIndices]
+                #evaluate based on loss function
+                lhEvalLoss = criterion(lhPred, normalLhFMRI)
+                rhEvalLoss = criterion(rhPred, normalRhFMRI)
+                #sum r2 scores and loss values for batch
+                avgLhEvalLoss += lhEvalLoss.item()
+                avgLhEvalR2Score += r2_score(lhPred.detach().cpu().numpy(), normalLhFMRI.detach().cpu().numpy())
+                avgRhEvalLoss += rhEvalLoss.item()
+                avgRhEvalR2Score += r2_score(rhPred.detach().cpu().numpy(), normalRhFMRI.detach().cpu().numpy())
+        lhScheduler.step()
+        rhScheduler.step()
+        #calculate metrics for epoch
+        validLhMse = avgLhEvalLoss / len(validDataLoader)
+        validLhR2 = avgLhEvalR2Score / len(validDataLoader)
+        validRhMse = avgRhEvalLoss / len(validDataLoader)
+        validRhR2 = avgRhEvalR2Score / len(validDataLoader)
+        print(f"lh using lr = {lhScheduler.get_last_lr()} TrainingMSE: {avgLhTrainingLoss / len(trainDataLoader)}, ValidMSE: {validLhMse}, trainR2 = {avgLhTrainingR2Score / len(trainDataLoader)}, evalR2= {validLhR2}")
+        print(f"rh using lr = {rhScheduler.get_last_lr()} TrainingMSE: {avgRhTrainingLoss / len(trainDataLoader)}, ValidMSE: {validRhMse}, trainR2 = {avgRhTrainingR2Score / len(trainDataLoader)}, evalR2= {validRhR2}")
+        
 # kinda maybe using
 def vggYoloRandomForest():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"

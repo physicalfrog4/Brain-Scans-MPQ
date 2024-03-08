@@ -121,6 +121,7 @@ class roiVGGYolo(torch.nn.Module):
         for boundingBoxData in boundingBoxDataAllImages:
             #if no bounding boxes, continue (ignore image)
             if len(boundingBoxData) == 0:
+                count+=1
                 continue
             #pool the features in the regions that overlap with a bounding box. returns a result for each detected object
             objectROIPools = ops.roi_pool(convFeatures, [boundingBoxData], output_size = (7,7)) #output shape (num objects, 512, 7, 7)
