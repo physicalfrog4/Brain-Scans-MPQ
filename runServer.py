@@ -128,44 +128,46 @@ class roiVGGYolo(torch.nn.Module):
             params.requires_grad = False
         #Create the MLP which is just a series of linear layers with relu
         self.MLP = torch.nn.Sequential(
+            torch.nn.Linear(100352, 25088),
+            torch.nn.ReLU(),
             torch.nn.Linear(25088, 4096),
             torch.nn.ReLU(),
-            torch.nn.Linear(4096, 1024),
-            torch.nn.ReLU(),
-            torch.nn.Linear(1024, numROIs),
+            torch.nn.Linear(4096, numROIs),
         )
         #Save the torch transforms for the YOLO model
         self.tsfms = tsfms
     def forward(self, img, imgPaths):
         #extract vgg features from image
         convFeatures = self.vggConvFeatures(img)
-        #transform the original images such as it's compatible with the YOLO model
-        yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
-        #Make YOLO predictions on images and get bounding box data
-        yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput), verbose=False)]
-        boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
-        finalFMRIs = []
-        indices = [] #saved indexes to use that have bounding box info from yolo
-        count = 0
-        #for each detected bounding box
-        for boundingBoxData in boundingBoxDataAllImages:
-            #if no bounding boxes, continue (ignore image)
-            if len(boundingBoxData) == 0:
-                count+=1
-                continue
-            #pool the features in the regions that overlap with a bounding box. returns a result for each detected object
-            objectROIPools = ops.roi_pool(convFeatures, [boundingBoxData], output_size = (7,7)) #output shape (num objects, 512, 7, 7)
-            fmriPieces = []
-            #for the pooled results for each object, predict the partial fmri data
-            for objectROIPool in objectROIPools:
-                input = torch.flatten(objectROIPool) #flatten data to pass into mlp, shape (1, 25088)
-                fmriPieces.append(self.MLP(input)) #save partial fmri prediction
-            #sum over all partial fmri data
-            totalFMRI = torch.sum(torch.stack(fmriPieces), dim=0)
-            finalFMRIs.append(totalFMRI)
-            indices.append(count)
-            count+=1
-        return torch.stack(finalFMRIs), indices 
+        convFeatures = torch.flatten(convFeatures,1)
+        return self.MLP(convFeatures)
+        # #transform the original images such as it's compatible with the YOLO model
+        # yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
+        # #Make YOLO predictions on images and get bounding box data
+        # yoloResults = [results.boxes for results in self.yolo.predict(torch.stack(yoloInput), verbose=False)]
+        # boundingBoxDataAllImages = self.getMappedBoundingBox(yoloResults)
+        # finalFMRIs = []
+        # indices = [] #saved indexes to use that have bounding box info from yolo
+        # count = 0
+        # #for each detected bounding box
+        # for boundingBoxData in boundingBoxDataAllImages:
+        #     #if no bounding boxes, continue (ignore image)
+        #     if len(boundingBoxData) == 0:
+        #         count+=1
+        #         continue
+        #     #pool the features in the regions that overlap with a bounding box. returns a result for each detected object
+        #     objectROIPools = ops.roi_pool(convFeatures, [boundingBoxData], output_size = (7,7)) #output shape (num objects, 512, 7, 7)
+        #     fmriPieces = []
+        #     #for the pooled results for each object, predict the partial fmri data
+        #     for objectROIPool in objectROIPools:
+        #         input = torch.flatten(objectROIPool) #flatten data to pass into mlp, shape (1, 25088)
+        #         fmriPieces.append(self.MLP(input)) #save partial fmri prediction
+        #     #sum over all partial fmri data
+        #     totalFMRI = torch.sum(torch.stack(fmriPieces), dim=0)
+        #     finalFMRIs.append(totalFMRI)
+        #     indices.append(count)
+        #     count+=1
+        # return torch.stack(finalFMRIs), indices 
     #extract bounding box data for each of the yolo results objects
     def getMappedBoundingBox(self, yoloResults):
         mappedBoxes = []
@@ -235,42 +237,42 @@ criterion = torch.nn.MSELoss()
 #Training for specified epochs
 epochs = 25
 
-lhPredictions = []
-lhActual = []
-allLhIndices = np.array([])
-rhPredictions = []
-allRhIndices = np.array([])
-first = True
-with torch.no_grad():
-    for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
-        #Get data in batch
-        img, imgPaths, _, _, normalLhFMRI, _ = data
-        img = img.to(device)
-        # normalLhFMRI = normalLhFMRI.to(device)
-        # normalRhFMRI = normalRhFMRI.to(device)
-        #make predictions
-        lhPred, lhIndices = lhModel(img, imgPaths)
-        normalLhFMRI = normalLhFMRI[lhIndices]
-        # rhPred, rhIndices = rhModel(img, imgPaths)
-        # print(lhIndices)
-        #
-        if first:
-            first = False
-            lhPredictions.extend(lhPred.cpu().numpy())
-            lhActual.extend(normalLhFMRI.cpu().numpy())
-            allLhIndices = np.concatenate((allLhIndices, np.array(lhIndices)))
-            # allLhIndices.extend(lhIndices )
-            # rhPredictions.extend(rhPred.cpu().numpy())
-            # allRhIndices = np.concatenate((allRhIndices, np.array(rhIndices)))
-            # allRhIndices.extend(rhIndices)
-        else:
-            lhPredictions.extend(lhPred.cpu().numpy())
-            lhActual.extend(normalLhFMRI.cpu().numpy())
-            allLhIndices = np.concatenate((allLhIndices, np.array(lhIndices) + allLhIndices[-1] + 1))
-            # allLhIndices.extend(lhIndices )
-            # rhPredictions.extend(rhPred.cpu().numpy())
-            # allRhIndices = np.concatenate((allRhIndices, np.array(rhIndices) + allRhIndices[-1] + 1))
-            # allRhIndices.extend(rhIndices)
+# lhPredictions = []
+# lhActual = []
+# allLhIndices = np.array([])
+# rhPredictions = []
+# allRhIndices = np.array([])
+# first = True
+# with torch.no_grad():
+#     for data in tqdm(validDataLoader, desc="Evaluating", unit="batch"): 
+#         #Get data in batch
+#         img, imgPaths, _, _, normalLhFMRI, _ = data
+#         img = img.to(device)
+#         # normalLhFMRI = normalLhFMRI.to(device)
+#         # normalRhFMRI = normalRhFMRI.to(device)
+#         #make predictions
+#         lhPred, lhIndices = lhModel(img, imgPaths)
+#         normalLhFMRI = normalLhFMRI[lhIndices]
+#         # rhPred, rhIndices = rhModel(img, imgPaths)
+#         # print(lhIndices)
+#         #
+#         if first:
+#             first = False
+#             lhPredictions.extend(lhPred.cpu().numpy())
+#             lhActual.extend(normalLhFMRI.cpu().numpy())
+#             allLhIndices = np.concatenate((allLhIndices, np.array(lhIndices)))
+#             # allLhIndices.extend(lhIndices )
+#             # rhPredictions.extend(rhPred.cpu().numpy())
+#             # allRhIndices = np.concatenate((allRhIndices, np.array(rhIndices)))
+#             # allRhIndices.extend(rhIndices)
+#         else:
+#             lhPredictions.extend(lhPred.cpu().numpy())
+#             lhActual.extend(normalLhFMRI.cpu().numpy())
+#             allLhIndices = np.concatenate((allLhIndices, np.array(lhIndices) + allLhIndices[-1] + 1))
+#             # allLhIndices.extend(lhIndices )
+#             # rhPredictions.extend(rhPred.cpu().numpy())
+#             # allRhIndices = np.concatenate((allRhIndices, np.array(rhIndices) + allRhIndices[-1] + 1))
+#             # allRhIndices.extend(rhIndices)
     
 
 
