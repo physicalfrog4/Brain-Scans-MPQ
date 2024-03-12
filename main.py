@@ -1,3 +1,4 @@
+# Import necessary libraries
 import os
 import numpy as np
 import torch
@@ -7,8 +8,11 @@ import visualize
 from words import make_classifications, Predictions
 from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results
 from LEM import extract_data_features, predAccuracy
+from visualize import plot_predictions
 from numpy.linalg import norm
-
+from sklearn.linear_model import LinearRegression
+from sklearn import tree
+from sklearn.neural_network import MLPRegressor
 
 
 def main():
@@ -99,11 +103,23 @@ def main():
     analyze_results(LH_val_FMRI, lh_fmri_val_pred)
     analyze_results(RH_val_FMRI, rh_fmri_val_pred)
 
+    # Make predictions
+    LR = LinearRegression()
+    DT = tree.DecisionTreeRegressor()
+    MLP = MLPRegressor()
+    print("________ Linear Regression Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LR)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, LR)
 
-    print("________ Make Predictions ________")
+    
+    print("________ Decision Tree Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
 
-    lh_fmri_val_pred = unnormalize_fmri_data(lh_fmri_val_pred, lh_data_min, lh_data_max)
-    rh_fmri_val_pred = unnormalize_fmri_data(rh_fmri_val_pred, rh_data_min, rh_data_max)
+    
+    print("________ MLP Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
 
     print("________ Re-Load Data ________")
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
