@@ -10,6 +10,9 @@ from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results
 from LEM import extract_data_features, predAccuracy
 from visualize import plot_predictions
 from numpy.linalg import norm
+from sklearn.linear_model import LinearRegression
+from sklearn import tree
+from sklearn.neural_network import MLPRegressor
 
 # Class to hold arguments
 class argObj:
@@ -109,11 +112,25 @@ def main():
     RH_train_class, RH_train_FMRI = data.organize_input(rh_classifications, features_train, rh_fmri_train)
     RH_val_class, RH_val_FMRI = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
 
-    print("________ Predictions ________")
+    
 
     # Make predictions
-    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class)
-    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class)
+    LR = LinearRegression()
+    DT = tree.DecisionTreeRegressor()
+    MLP = MLPRegressor()
+    print("________ Linear Regression Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LR)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, LR)
+
+    
+    print("________ Decision Tree Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
+
+    
+    print("________ MLP Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
 
     print("________ Analyze Results ________")
 
@@ -194,7 +211,6 @@ def main():
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'
-    device = 'cpu'
-    #device = 'cuda:0'
+    device = 'cuda:0'
     device = torch.device(device)
     main()
