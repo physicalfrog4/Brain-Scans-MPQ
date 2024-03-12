@@ -321,10 +321,9 @@ for epoch in range(epochs):
         lhOptim.zero_grad()
         # rhOptim.zero_grad()
         #make predictions
-        lhPred, lhIndices = lhModel(img, imgPaths)
+        lhPred = lhModel(img, imgPaths)
         # rhPred, rhIndices = rhModel(img, imgPaths)
         #only use data for images that had bounding box data
-        lhFMRI = lhFMRI[lhIndices]
         # normalRhFMRI = normalRhFMRI[rhIndices]
         #evaluate based on loss function
         lhLoss = combinedLoss(lhPred, lhFMRI, mseWeight)
@@ -347,10 +346,9 @@ for epoch in range(epochs):
             lhFMRI = lhFMRI.to(device)
             # normalRhFMRI = normalRhFMRI.to(device)
             #make predictions
-            lhPred, lhIndices = lhModel(img, imgPaths)
+            lhPred = lhModel(img, imgPaths)
             # rhPred, rhIndices = rhModel(img, imgPaths)
             #only use data for images that had bounding box data
-            lhFMRI = lhFMRI[lhIndices]
             # normalRhFMRI = normalRhFMRI[rhIndices]
             #evaluate based on loss function
             lhEvalLoss = combinedLoss(lhPred, lhFMRI, mseWeight)
