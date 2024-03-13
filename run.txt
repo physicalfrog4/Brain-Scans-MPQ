@@ -1,0 +1,41 @@
+print("________ Organize Input________")
+
+dftrainL, dftrainFL = data.organize_input(lh_classifications, features_train, lh_fmri_train)
+dftrainR, dftrainFR = data.organize_input(rh_classifications, features_train, rh_fmri_train)
+
+dfvalL, dfvalFL = data.organize_input(lh_classifications_val, features_val, lh_fmri_val)
+dfvalR, dfvalFR = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
+
+dftestL, dftestFL = data.organize_input(lh_classifications_test, features_test, lh_fmri_test)
+dftestR, dftestFR = data.organize_input(rh_classifications_test, features_test, rh_fmri_test)
+
+
+
+print("________ Predictions Validation ________")
+lh_fmri_val_pred = Predictions(dftrainL, dftrainFL, dfvalL, dfvalFL)
+rh_fmri_val_pred = Predictions(dftrainR, dftrainFR, dfvalR, dfvalFR)
+
+
+
+print("________ Unnormalize Data ________")
+
+lh_fmri_val_pred = unnormalize_fmri_data(lh_fmri_val_pred, lh_data_min, lh_data_max)
+rh_fmri_val_pred = unnormalize_fmri_data(rh_fmri_val_pred, rh_data_min, rh_data_max)
+lh_fmri_test_pred = unnormalize_fmri_data(lh_fmri_test_pred, lh_data_min, lh_data_max)
+rh_fmri_test_pred = unnormalize_fmri_data(rh_fmri_test_pred, rh_data_min, rh_data_max)
+
+
+print("________ Re-Load Data ________")
+lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
+rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
+
+lh_fmri_val = lh_fmri[idxs_val]
+rh_fmri_val = rh_fmri[idxs_val]
+
+lh_fmri_test = lh_fmri[idxs_train]
+rh_fmri_test = rh_fmri[idxs_train]
+print(lh_fmri_test)
+
+print("________ Prediction Accuracy ________")
+
+lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
