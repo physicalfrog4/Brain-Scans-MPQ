@@ -15,7 +15,7 @@ def plot_predictions(args, lh_correlation, rh_correlation, hemisphere):
                            hemisphere[0] + 'h.all-vertices_fsaverage_space.npy')
     fsaverage_all_vertices = np.load(roi_dir)
 
-
+    
     fsaverage_correlation = np.zeros(len(fsaverage_all_vertices))
     if hemisphere == 'left':
         fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = lh_correlation

@@ -10,6 +10,9 @@ from data import normalize_fmri_data, unnormalize_fmri_data, analyze_results
 from LEM import extract_data_features, predAccuracy
 from visualize import plot_predictions
 from numpy.linalg import norm
+from sklearn.linear_model import LinearRegression
+from sklearn import tree
+from sklearn.neural_network import MLPRegressor
 
 # Class to hold arguments
 class argObj:
@@ -23,7 +26,7 @@ class argObj:
 # Main function
 def main():
     # setting up the directories and ARGS
-    data_dir = '../MQP/algonauts_2023_challenge_data/'  # Specify the data directory
+    data_dir = ''#../MQP/algonauts_2023_challenge_data/'  # Specify the data directory
     parent_submission_dir = '../submission'  # Specify the parent submission directory
     subj = 1  # Specify the subject number
 
@@ -34,7 +37,7 @@ def main():
     fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
-
+    
     # Specify categories
     words = ['furniture', 'food', 'kitchenware', 'appliance', 'person', 'animal', 'vehicle', 'accessory',
              'electronics', 'sports', 'traffic', 'outdoor', 'home', 'clothing', 'hygiene', 'toy', 'plumbing',
@@ -58,6 +61,7 @@ def main():
     train_img_dir = os.path.join(args.data_dir, 'training_split', 'training_images')
     test_img_dir = os.path.join(args.data_dir, 'test_split', 'test_images')
     train_img_list = os.listdir(train_img_dir)
+    train_img_list = train_img_list[: 150]
     train_img_list.sort()
     test_img_list = os.listdir(test_img_dir)
     test_img_list.sort()
@@ -73,6 +77,8 @@ def main():
     rh_fmri_train = rh_fmri[idxs_train]
     lh_fmri_val = lh_fmri[idxs_val]
     rh_fmri_val = rh_fmri[idxs_val]
+
+    
 
     print("________ Make Lists ________")
 
@@ -109,11 +115,25 @@ def main():
     RH_train_class, RH_train_FMRI = data.organize_input(rh_classifications, features_train, rh_fmri_train)
     RH_val_class, RH_val_FMRI = data.organize_input(rh_classifications_val, features_val, rh_fmri_val)
 
-    print("________ Predictions ________")
+    
 
     # Make predictions
-    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class)
-    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class)
+    LR = LinearRegression()
+    DT = tree.DecisionTreeRegressor()
+    MLP = MLPRegressor()
+    print("________ Linear Regression Predictions ________")
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LR)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, LR)
+    
+   
+    print("________ Decision Tree Predictions ________")
+    # lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
+    # rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
+
+    
+    print("________ MLP Predictions ________")
+    # lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
+    # rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
 
     print("________ Analyze Results ________")
 
@@ -126,6 +146,7 @@ def main():
     # Unnormalize fMRI data and reload original data
     lh_fmri_val_pred = unnormalize_fmri_data(lh_fmri_val_pred, lh_data_min, lh_data_max)
     rh_fmri_val_pred = unnormalize_fmri_data(rh_fmri_val_pred, rh_data_min, rh_data_max)
+    visualize.plotROIs(args,lh_fmri_val_pred, rh_fmri_val_pred)
 
     print("________ Re-Load Data ________")
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
@@ -137,7 +158,7 @@ def main():
     print("________ Prediction Accuracy ________")
 
     # Calculate and print prediction accuracy
-    lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
+    # lh_correlation, rh_correlation = predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val)
 
     print("________ Visualize Each Class ________")
 
@@ -164,20 +185,21 @@ def main():
         rh_mean_val = np.mean(avg_rh_val, axis=0)
         lh_mean_real = np.mean(avg_lh_real, axis=0)
         rh_mean_real = np.mean(avg_rh_real, axis=0)
-
+        
+        
+        
         # Only look at classes that are observed
-        if(len(avg_lh_val) < 10):
+        if(len(avg_lh_val) < 5):
             pass
         else:
             print(words[clss])
-            
             print("MEAN PRED LH:\n", lh_mean_val)
             plot_predictions(args, lh_mean_val, rh_mean_val, 'left')
             print("MEAN REAL LH:\n", lh_mean_real)
             plot_predictions(args, lh_mean_real, rh_mean_real, 'left')
             cosine = np.dot(lh_mean_val,lh_mean_real)/(norm(lh_mean_val)*norm(lh_mean_real))
             print("Cosine Similarity:", cosine)
-        if(len(avg_rh_val) < 10):
+        if(len(avg_rh_val) < 5):
             pass
         else:
             print(words[clss])
