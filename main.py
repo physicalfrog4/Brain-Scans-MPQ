@@ -16,6 +16,9 @@ from sklearn.neural_network import MLPRegressor
 
 
 def main():
+    device = "cuda"
+    torch.cuda.set_device(device)
+
     # setting up the directories and ARGS
     data_dir = '../MQP/algonauts_2023_challenge_data/'
     parent_submission_dir = '../submission'

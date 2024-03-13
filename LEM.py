@@ -9,10 +9,8 @@ from torchvision.models import vgg19
 
 
 def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, device = "cuda:1"):
-    vgg = vgg19(weights="DEFAULT")
-    vgg.to(device)
+    vgg = vgg19(weights="DEFAULT").to(device)
     vggConvFeatures = vgg.features[:35]
-    train_nodes, _ = get_graph_node_names(vgg)
     model_layer = "avgpool"
 
     feature_extractor = create_feature_extractor(vgg, return_nodes=[model_layer])
@@ -56,7 +54,7 @@ def predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val):
     # Correlate each predicted RH vertex with the corresponding ground truth vertex
     for v in tqdm(range(rh_fmri_val_pred.shape[1])):
         rh_correlation[v] = corr(rh_fmri_val_pred[:, v], rh_fmri_val[:, v])[0]
-
+        
     print('average lh ', average(lh_correlation) * 100, 'average rh ', average(rh_correlation) * 100)
     return lh_correlation, rh_correlation
 
@@ -78,14 +76,12 @@ def extract_features(feature_extractor, dataloader, pca, device):
         features.append(ft)
         val = np.vstack(features)
         # print(val)
-
     return np.vstack(features)
 
 
 def fit_pca(feature_extractor, dataloader, batch_size, device):
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
-
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader), desc="PCA"):
         # Send to tensor to device
