@@ -4,9 +4,9 @@ from sklearn.metrics import mean_squared_error
 from ultralytics import YOLO
 
 
-def Predictions(train, train_fmri, val, linear_regression_model):
+def Predictions(train, train_fmri, val, model):
 
-    # linear_regression_model = LinearRegression()
+    linear_regression_model = model
     linear_regression_model.fit(train, train_fmri)
     linear_regression_predictions = linear_regression_model.predict(val)
 

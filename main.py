@@ -124,16 +124,16 @@ def main():
     print("________ Linear Regression Predictions ________")
     lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LR)
     rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, LR)
+
     
-   
     print("________ Decision Tree Predictions ________")
-    # lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
-    # rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
 
     
     print("________ MLP Predictions ________")
-    # lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
-    # rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
+    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
+    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
 
     print("________ Analyze Results ________")
 
@@ -216,7 +216,6 @@ def main():
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'
-    device = 'cpu'
-    #device = 'cuda:0'
+    device = 'cuda:0'
     device = torch.device(device)
     main()
