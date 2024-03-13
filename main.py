@@ -16,6 +16,9 @@ from sklearn.neural_network import MLPRegressor
 
 
 def main():
+    device = "cuda"
+    torch.cuda.set_device(device)
+
     # setting up the directories and ARGS
     data_dir = '../MQP/algonauts_2023_challenge_data/'
     parent_submission_dir = '../submission'
@@ -84,7 +87,7 @@ def main():
         data.transformData(train_img_dir, test_img_dir, idxs_train, idxs_val, idxs_test, 64))
 
     features_train, features_val, features_test = (
-        extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 64))
+        extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, 64, device))
 
     print("________ LEARN MORE ________")
 
