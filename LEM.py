@@ -8,7 +8,7 @@ from scipy.stats import pearsonr as corr
 from torchvision.models import vgg19
 
 
-def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size):
+def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_dataloader, batch_size, device = "cuda:1"):
     vgg = vgg19(weights="DEFAULT")
     vgg.to(device)
     vggConvFeatures = vgg.features[:35]
@@ -16,11 +16,11 @@ def extract_data_features(train_imgs_dataloader, val_imgs_dataloader, test_imgs_
     model_layer = "avgpool"
 
     feature_extractor = create_feature_extractor(vgg, return_nodes=[model_layer])
-    pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size)
+    pca = fit_pca(feature_extractor, train_imgs_dataloader, batch_size, device)
 
-    features_train = extract_features(feature_extractor, train_imgs_dataloader, pca)
-    features_val = extract_features(feature_extractor, val_imgs_dataloader, pca)
-    features_test = extract_features(feature_extractor, test_imgs_dataloader, pca)
+    features_train = extract_features(feature_extractor, train_imgs_dataloader, pca, device)
+    features_val = extract_features(feature_extractor, val_imgs_dataloader, pca, device)
+    features_test = extract_features(feature_extractor, test_imgs_dataloader, pca, device)
 
     print('\nTraining images features:')
     print(features_train.shape)
@@ -62,9 +62,11 @@ def predAccuracy(lh_fmri_val_pred, lh_fmri_val, rh_fmri_val_pred, rh_fmri_val):
 
 
 
-def extract_features(feature_extractor, dataloader, pca):
+def extract_features(feature_extractor, dataloader, pca, device):
     features = []
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader), desc="Extracting Features"):
+        # Send to tensor to device
+        d = d.to(device)
         # ...
         # Extract features
         ft = feature_extractor(d)
@@ -80,13 +82,14 @@ def extract_features(feature_extractor, dataloader, pca):
     return np.vstack(features)
 
 
-def fit_pca(feature_extractor, dataloader, batch_size):
-    torch.device = 'cuda:0'
+def fit_pca(feature_extractor, dataloader, batch_size, device):
     # Define PCA parameters
     pca = IncrementalPCA(batch_size=batch_size)
 
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader), desc="PCA"):
+        # Send to tensor to device
+        d = d.to(device)
         # Extract features
         ft = feature_extractor(d)
         # Flatten the features
