@@ -123,9 +123,9 @@ class roiVGGYolo(torch.nn.Module):
         for params in self.vgg.parameters():
             params.requires_grad = False
         #Make yolo instance and freeze parameters so they aren't updated during training
-        self.yolo = YoloModel("yolov8n.pt")
-        for params in self.yolo.parameters():
-            params.requires_grad = False
+        # self.yolo = YoloModel("yolov8n.pt")
+        # for params in self.yolo.parameters():
+        #     params.requires_grad = False
         #Create the MLP which is just a series of linear layers with relu
         self.MLP = torch.nn.Sequential(
             torch.nn.Linear(100352, 25088),
@@ -136,10 +136,13 @@ class roiVGGYolo(torch.nn.Module):
         )
         #Save the torch transforms for the YOLO model
         self.tsfms = tsfms
-    def forward(self, img, imgPaths):
+    def forward(self, img):
         #extract vgg features from image
+        print(img.shape)
         convFeatures = self.vggConvFeatures(img)
+        print(convFeatures.shape)
         convFeatures = torch.flatten(convFeatures,1)
+        print(convFeatures.shape)
         return self.MLP(convFeatures)
         # #transform the original images such as it's compatible with the YOLO model
         # yoloInput = [self.tsfms(Image.open(image)) for image in imgPaths]
@@ -191,10 +194,10 @@ class roiVGGYolo(torch.nn.Module):
         return ""
 
 platform = 'jupyter_notebook'
-device = 'cuda:1'
+device = 'cuda:0'
 device = torch.device(device)
 # setting up the directories and ARGS
-data_dir = './algonauts_2023_challenge_data/'#../MQP/algonauts_2023_challenge_data/'
+data_dir = '/home/vislab-001/Documents/algonauts_2023_challenge_data/'#../MQP/algonauts_2023_challenge_data/'
 parent_submission_dir = '../submission'
 subj = 1 # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
 # args
@@ -221,9 +224,9 @@ trainIdxs, validIdxs = train_test_split(range(len(trainingDataset.imagePaths)), 
 lhNumROIs = len(trainingDataset.lhFMRI[0])
 rhNumROIs = len(trainingDataset.rhFMRI[0])
 trainSubset = Subset(trainingDataset, trainIdxs)
-trainDataLoader = DataLoader(trainSubset, batch_size = 128, shuffle = True)
+trainDataLoader = DataLoader(trainSubset, batch_size = 32, shuffle = True)
 validSubset = Subset(trainingDataset, validIdxs)
-validDataLoader = DataLoader(validSubset, batch_size = 128, shuffle = False)#change
+validDataLoader = DataLoader(validSubset, batch_size = 32, shuffle = False)#change
 #Create VGG and YOLO model
 lhModel = roiVGGYolo(lhNumROIs, yoloTsfms).to(device)
 # rhModel = roiVGGYolo(rhNumROIs, yoloTsfms).to(device)
@@ -314,14 +317,14 @@ for epoch in range(epochs):
     # avgRhEvalR2Score = 0
     for data in tqdm(trainDataLoader, desc="Training", unit="batch"): 
         #Get data in batch
-        img, imgPaths, lhFMRI, _, _, _ = data
+        img, _, lhFMRI, _, _, _ = data
         img = img.to(device)
         lhFMRI = lhFMRI.to(device)
         # normalRhFMRI = normalRhFMRI.to(device)
         lhOptim.zero_grad()
         # rhOptim.zero_grad()
         #make predictions
-        lhPred = lhModel(img, imgPaths)
+        lhPred = lhModel(img)
         # rhPred, rhIndices = rhModel(img, imgPaths)
         #only use data for images that had bounding box data
         # normalRhFMRI = normalRhFMRI[rhIndices]
@@ -387,9 +390,9 @@ for epoch in range(epochs):
 # }
 
 # #Define KFold technique
-k_folds = 5
-skf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
-skf.split
+# k_folds = 5
+# skf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
+# skf.split
 # # Loop over folds
 # for fold, (train_idxs, val_idxs) in enumerate(skf.split(trainingDataset.imagePaths)):
 #     #Create subset of dataset with the corresponding training and validation indexes for this fold
