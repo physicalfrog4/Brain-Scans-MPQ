@@ -6,34 +6,27 @@ import numpy as np
 from pathlib import Path
 from torch.utils.data import DataLoader, Dataset
 from PIL import Image
+from numpy.linalg import norm
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split
 
 
 def splitdata(train_img_list, test_img_list, train_img_dir):
-    rand_seed = random.randint(0, 100)
-    np.random.seed(rand_seed)
-
-    # Calculate how many stimulus images correspond to 90% of the training data
-    num_train = int(np.round(len(train_img_list) / 100 * 90))
-
-    # Shuffle all training stimulus images
-    idxs = np.arange(len(train_img_list))
-    np.random.shuffle(idxs)
-
     # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
-    idxs_train, idxs_val = idxs[:num_train], idxs[num_train:]
+    idxs_train, idxs_val = train_test_split(range(len(train_img_list)), random_state=42)
 
     # No need to shuffle or split the test stimulus images
     idxs_test = np.arange(len(test_img_list))
 
-    val_img_list = []
-    for i in idxs_train:
-        img_dir = os.path.join(train_img_dir, train_img_list[i])
-        train_img = Image.open(img_dir).convert('RGB')
-        # print(train_img)
-        val_img_list.append(train_img)
-    print('Training stimulus images: ' + format(len(idxs_train)))
-    print('\nValidation stimulus images: ' + format(len(idxs_val)))
-    print('\nTest stimulus images: ' + format(len(idxs_test)))
+    # val_img_list = []
+    # for i in idxs_train:
+    #     img_dir = os.path.join(train_img_dir, train_img_list[i])
+    #     train_img = Image.open(img_dir).convert('RGB')
+    #     # print(train_img)
+    #     val_img_list.append(train_img)
+    #print('Training stimulus images: ' + format(len(idxs_train)))
+    #print('\nValidation stimulus images: ' + format(len(idxs_val)))
+    #print('\nTest stimulus images: ' + format(len(idxs_test)))
     return idxs_train, idxs_val, idxs_test
 
 
@@ -76,7 +69,7 @@ class ImageDataset(Dataset):
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
         if self.transform:
-            img = self.transform(img).to('cuda:1')
+            img = self.transform(img)
         return img
 
 
@@ -90,7 +83,7 @@ def normalize_fmri_data(data):
     # Scale the clipped data to the range [0, 1]
     min_value = np.min(clipped_data)
     max_value = np.max(clipped_data)
-    print(min_value, max_value)
+ 
 
     if max_value == min_value:
         normalized_data = np.zeros_like(clipped_data)
@@ -98,6 +91,9 @@ def normalize_fmri_data(data):
         normalized_data = (clipped_data - min_value) / (max_value - min_value)
 
     return normalized_data, min_value, max_value
+
+def average_normalization(data):
+    return np.sign(data)
 
 
 def unnormalize_fmri_data(normalized_data, min_value, max_value, clip_percentile=0.05):
@@ -127,27 +123,31 @@ def organize_input(classifications, image_data, fmri_data):
     index = 0
 
     for j in enumerate(classifications):
-        print(j)
-        
         # Image NUM
         arr = []
+        arr.append((j[1][0]))
         arr.append((j[1][1]))
-        arr.append((j[1][2]))
         arr = list(arr)
-        #print(arr)
+        # print(arr)
 
         # Image Data
-        arr0 = (np.array(image_data[j[1][0]])).tolist()
-        #print(arr0)
+        arr0 = (np.array(image_data[index])).tolist()
+        # print(arr0)
         new_list = arr + arr0
         results.append(new_list)
 
         # FMRI Data
-        fmri.append(np.array(fmri_data[j[1][0]]))
+        fmri.append(np.array(fmri_data[index]))
         index = index + 1
-    df = pd.DataFrame(results)
-    df1 = pd.DataFrame(fmri)
 
-    print(df)
-    print(df1)
-    return df, df1
+    return results, fmri
+
+def analyze_results(val_fmri, val_pred):
+   
+    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", val_pred)
+    linear_regression_mse = mean_squared_error(val_fmri, val_pred)
+    print(f'Mean Squared Error: {linear_regression_mse}')
+    linear_regression_mae = mean_absolute_error(val_fmri, val_pred)
+    print(f'Mean Absolute Error: {linear_regression_mae}')
+    linear_cosine_similarity = np.dot(np.mean(val_fmri),np.mean(val_pred))/(norm(np.mean(val_fmri))*norm(np.mean(val_pred)))
+    print("Cosine Similarity:", linear_cosine_similarity)

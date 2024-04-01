@@ -175,7 +175,7 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
         colorbar=True,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    plotting.show()
+    view
 
 
 # this doesnt work
@@ -195,10 +195,10 @@ def plot_predictions(args, lh_correlation, rh_correlation):
     fsaverage_correlation = np.zeros(len(fsaverage_all_vertices))
     if hemisphere == 'left':
         fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = lh_correlation
-        #print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
+        print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
     elif hemisphere == 'right':
         fsaverage_correlation[np.where(fsaverage_all_vertices)[0]] = rh_correlation
-        #print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
+        print(fsaverage_correlation[np.where(fsaverage_all_vertices)])
 
     # Create the interactive brain surface map
     fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
@@ -211,6 +211,7 @@ def plot_predictions(args, lh_correlation, rh_correlation):
         colorbar=True,
         title='Encoding accuracy, ' + hemisphere + ' hemisphere'
     )
+    view
 
 
 
