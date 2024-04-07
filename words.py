@@ -10,11 +10,11 @@ def Predictions(train, train_fmri, val, val_fmri):
     linear_regression_model.fit(train, train_fmri)
     linear_regression_predictions = linear_regression_model.predict(val)
 
-    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", linear_regression_predictions)
-    linear_regression_mse = mean_squared_error(val_fmri, linear_regression_predictions)
-    print(f'Random Forest Mean Squared Error: {linear_regression_mse}')
-    score = linear_regression_model.score(val, val_fmri)
-    print("accuracy score", score)
+    #print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", linear_regression_predictions)
+    #linear_regression_mse = mean_squared_error(val_fmri, linear_regression_predictions)
+    #print(f'Random Forest Mean Squared Error: {linear_regression_mse}')
+    #score = linear_regression_model.score(val, val_fmri)
+    #print("accuracy score", score)
 
     return linear_regression_predictions
 
@@ -24,9 +24,7 @@ def make_classifications(image_list, idxs, device, batch_size=100):
     modelYOLO.to(device)
     results = []
 
-    words = ['furniture', 'food', 'kitchenware', 'appliance', 'person', 'animal', 'vehicle', 'accessory',
-             'electronics', 'sports', 'traffic', 'outdoor', 'home', 'clothing', 'hygiene', 'toy', 'plumbing',
-             'safety', 'luggage', 'computer', 'fruit', 'vegetable', 'tool']
+    words = ['person', 'animal', 'vehicle', 'outdoor', 'accessory', 'toy','container', 'utensil', 'food', 'furniture', 'appliance','indoor', 'clothing'] 
 
     for start_idx in range(0, len(image_list), batch_size):
         end_idx = start_idx + batch_size
@@ -71,7 +69,7 @@ def make_classifications(image_list, idxs, device, batch_size=100):
     return final
 
 
-class_mapping = {
+class_mapping2 = {
     'chair': 'furniture',
     'bowl': 'kitchenware',
     'dining table': 'furniture',
@@ -152,3 +150,87 @@ class_mapping = {
     'keyboard': 'computer',
     'mouse': 'computer'
 }
+
+class_mapping = { 
+    'person': 'person', 
+    'bicycle': 'vehicle', 
+    'car': 'vehicle', 
+    'motorcycle': 'vehicle', 
+    'airplane': 'vehicle', 
+    'bus': 'vehicle', 
+    'train': 'vehicle', 
+    'truck': 'vehicle', 
+    'boat': 'vehicle', 
+    'traffic light': 'outdoor', 
+    'fire hydrant': 'outdoor', 
+    'stop sign': 'outdoor', 
+    'parking meter': 'outdoor', 
+    'bench': 'outdoor', 
+    'bird': 'animal', 
+    'cat': 'animal', 
+    'dog': 'animal', 
+    'horse': 'animal', 
+    'sheep': 'animal', 
+    'cow': 'animal', 
+    'elephant': 'animal', 
+    'bear': 'animal', 
+    'zebra': 'animal', 
+    'giraffe': 'animal', 
+    'backpack': 'accessory', 
+    'umbrella': 'accessory', 
+    'handbag': 'accessory', 
+    'tie': 'accessory', 
+    'suitcase': 'accessory', 
+    'frisbee': 'toy', 
+    'skis': 'outdoor', 
+    'snowboard': 'outdoor', 
+    'sports ball': 'toy', 
+    'kite': 'toy', 
+    'baseball bat': 'outdoor',
+    'baseball glove': 'outdoor', 
+    'skateboard': 'outdoor', 
+    'surfboard': 'outdoor', 
+    'tennis racket': 'outdoor', 
+    'bottle': 'container', 
+    'wine glass': 'container', 
+    'cup': 'container', 
+    'fork': 'utensil', 
+    'knife': 'utensil', 
+    'spoon': 'utensil', 
+    'bowl': 'container', 
+    'banana': 'food', 
+    'apple': 'food', 
+    'sandwich': 'food', 
+    'orange': 'food', 
+    'broccoli': 'food', 
+    'carrot': 'food', 
+    'hot dog': 'food', 
+    'pizza': 'food', 
+    'donut': 'food', 
+    'cake': 'food', 
+    'chair': 'furniture', 
+    'couch': 'furniture', 
+    'potted plant': 'furniture', 
+    'bed': 'furniture', 
+    'dining table': 'furniture', 
+    'toilet': 'furniture', 
+    'tv': 'appliance', 
+    'laptop': 'appliance', 
+    'mouse': 'appliance', 
+    'remote': 'appliance', 
+    'keyboard': 'appliance', 
+    'cell phone': 'appliance', 
+    'microwave': 'appliance', 
+    'oven': 'appliance', 
+    'toaster': 'appliance', 
+    'sink': 'appliance', 
+    'refrigerator': 'appliance', 
+    'book': 'indoor', 
+    'clock': 'indoor', 
+    'vase': 'indoor', 
+    'scissors': 'indoor', 
+    'teddy bear': 'toy', 
+    'hair drier': 'appliance', 
+    'toothbrush': 'indoor' 
+
+} 

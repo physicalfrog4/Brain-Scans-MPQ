@@ -8,34 +8,25 @@ from torch.utils.data import DataLoader, Dataset
 from PIL import Image
 from numpy.linalg import norm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split
 
 
 def splitdata(train_img_list, test_img_list, train_img_dir):
-    rand_seed = random.randint(0, 100)
-    np.random.seed(rand_seed)
-
-    # Calculate how many stimulus images correspond to 90% of the training data
-    num_train = int(np.round(len(train_img_list) / 100 * 90))
-
-    # Shuffle all training stimulus images
-    idxs = np.arange(len(train_img_list))
-    np.random.shuffle(idxs)
-
     # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
-    idxs_train, idxs_val = idxs[:num_train], idxs[num_train:]
+    idxs_train, idxs_val = train_test_split(range(len(train_img_list)), random_state=42)
 
     # No need to shuffle or split the test stimulus images
     idxs_test = np.arange(len(test_img_list))
 
-    val_img_list = []
-    for i in idxs_train:
-        img_dir = os.path.join(train_img_dir, train_img_list[i])
-        train_img = Image.open(img_dir).convert('RGB')
-        # print(train_img)
-        val_img_list.append(train_img)
-    print('Training stimulus images: ' + format(len(idxs_train)))
-    print('\nValidation stimulus images: ' + format(len(idxs_val)))
-    print('\nTest stimulus images: ' + format(len(idxs_test)))
+    # val_img_list = []
+    # for i in idxs_train:
+    #     img_dir = os.path.join(train_img_dir, train_img_list[i])
+    #     train_img = Image.open(img_dir).convert('RGB')
+    #     # print(train_img)
+    #     val_img_list.append(train_img)
+    #print('Training stimulus images: ' + format(len(idxs_train)))
+    #print('\nValidation stimulus images: ' + format(len(idxs_val)))
+    #print('\nTest stimulus images: ' + format(len(idxs_test)))
     return idxs_train, idxs_val, idxs_test
 
 
@@ -101,6 +92,9 @@ def normalize_fmri_data(data):
 
     return normalized_data, min_value, max_value
 
+def average_normalization(data):
+    return np.sign(data)
+
 
 def unnormalize_fmri_data(normalized_data, min_value, max_value, clip_percentile=0.05):
     # Reverse the normalization process
@@ -150,10 +144,12 @@ def organize_input(classifications, image_data, fmri_data):
 
 def analyze_results(val_fmri, val_pred):
    
-    print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", val_pred)
+    # print(val_fmri, "\n _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n", val_pred)
     linear_regression_mse = mean_squared_error(val_fmri, val_pred)
     print(f'Mean Squared Error: {linear_regression_mse}')
     linear_regression_mae = mean_absolute_error(val_fmri, val_pred)
     print(f'Mean Absolute Error: {linear_regression_mae}')
     linear_cosine_similarity = np.dot(np.mean(val_fmri),np.mean(val_pred))/(norm(np.mean(val_fmri))*norm(np.mean(val_pred)))
     print("Cosine Similarity:", linear_cosine_similarity)
+
+    return linear_regression_mse, linear_regression_mae, linear_cosine_similarity

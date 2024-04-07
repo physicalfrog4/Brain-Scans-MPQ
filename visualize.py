@@ -175,7 +175,7 @@ def plotFMRIfromIMGandROI(args, train_img_dir, train_img_list, lh_fmri, rh_fmri,
         colorbar=True,
         title=roi + ', ' + hemisphere + ' hemisphere'
     )
-    plotting.show()
+    view
 
 
 # this doesnt work
@@ -209,8 +209,10 @@ def plot_predictions(args, lh_correlation, rh_correlation):
         threshold=1e-14,
         cmap='cold_hot',
         colorbar=True,
+        view='posterior',
         title='Encoding accuracy, ' + hemisphere + ' hemisphere'
     )
+    view
 
 
 

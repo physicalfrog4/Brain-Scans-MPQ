@@ -16,11 +16,11 @@ from sklearn.neural_network import MLPRegressor
 
 
 def main():
-    device = "cuda"
-    torch.cuda.set_device(device)
+    device = "cuda:1"
+    #torch.cuda.set_device(1)
 
     # setting up the directories and ARGS
-    data_dir = '../MQP/algonauts_2023_challenge_data/'
+    data_dir = '/home/vislab-001/Documents/algonauts_2023_challenge_data/'
     parent_submission_dir = '../submission'
     subj = 1  # @param ["1", "2", "3", "4", "5", "6", "7", "8"] {type:"raw", allow-input: true}
 
@@ -29,27 +29,26 @@ def main():
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
     rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 
-    words = ['furniture', 'food', 'kitchenware', 'appliance', 'person', 'animal', 'vehicle', 'accessory',
-             'electronics', 'sports', 'traffic', 'outdoor', 'home', 'clothing', 'hygiene', 'toy', 'plumbing',
-             'safety', 'luggage', 'computer', 'fruit', 'vegetable', 'tool']
-
+    words = ['animal', 'vehicle', 'outdoor', 'accessory', 'toy','container', 'utensil', 'food', 'furniture', 'appliance','indoor', 'clothing'] 
+    
     print("________ Process Data ________")
 
     # Normalize Data Before Split
     lh_fmri, lh_data_min, lh_data_max = normalize_fmri_data(lh_fmri)
     rh_fmri, rh_data_min, rh_data_max = normalize_fmri_data(rh_fmri)
 
-    print('LH training fMRI data shape:')
-    print(lh_fmri.shape)
-    print('(Training stimulus images × LH vertices)')
+    #print('LH training fMRI data shape:')
+    #print(lh_fmri.shape)
+    #print('(Training stimulus images × LH vertices)')
 
-    print('\nRH training fMRI data shape:')
-    print(rh_fmri.shape)
-    print('(Training stimulus images × RH vertices)')
+    #print('\nRH training fMRI data shape:')
+    #print(rh_fmri.shape)
+    #print('(Training stimulus images × RH vertices)')
 
     train_img_dir = os.path.join(args.data_dir, 'training_split', 'training_images')
     test_img_dir = os.path.join(args.data_dir, 'test_split', 'test_images')
     train_img_list = os.listdir(train_img_dir)
+    train_img_list = train_img_list[: 1000]
     train_img_list.sort()
     test_img_list = os.listdir(test_img_dir)
     test_img_list.sort()
@@ -113,16 +112,8 @@ def main():
     print("________ Linear Regression Predictions ________")
     lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, LR)
     rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, LR)
-
-    
-    print("________ Decision Tree Predictions ________")
-    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, DT)
-    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class,DT)
-
-    
-    print("________ MLP Predictions ________")
-    lh_fmri_val_pred = Predictions(LH_train_class, LH_train_FMRI, LH_val_class, MLP)
-    rh_fmri_val_pred = Predictions(RH_train_class, RH_train_FMRI, RH_val_class, MLP)
+    lh_fmri_val_pred = unnormalize_fmri_data(lh_fmri_val_pred, lh_data_min, lh_data_max)
+    rh_fmri_val_pred = unnormalize_fmri_data(rh_fmri_val_pred, rh_data_min, rh_data_max)
 
     print("________ Re-Load Data ________")
     lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
@@ -160,13 +151,13 @@ def main():
             rh = np.mean(avg_rh_pred, axis=0)
             #print("MEAN PRED LH:\n", lh)
             #print("MEAN PRED RH:\n", rh)
-            # visualize.plot_predictions(args, lh, rh)
+            visualize.plot_predictions(args, lh, rh)
             lh2 = np.mean(avg_lh_real, axis=0)
             rh2 = np.mean(avg_rh_real, axis=0)
             #print("MEAN REAL LH:\n", lh2)
             #print("MEAN REAL RH:\n", rh2)
             # visualize.plot_predictions(args, lh2, rh2)
-            # plotting.show()
+            plotting.show()
             corr = np.corrcoef(avg_lh_pred, avg_lh_real)
             print(len(avg_lh_pred))
             print("Corre ", np.mean(corr))
@@ -188,6 +179,6 @@ class argObj:
 
 if __name__ == "__main__":
     platform = 'jupyter_notebook'
-    device = 'cuda:0'
+    device = 'cuda:1'
     device = torch.device(device)
     main()
